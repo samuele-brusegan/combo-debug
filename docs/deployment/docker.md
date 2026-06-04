@@ -7,13 +7,16 @@ Documento foglia: build, configurazione ed esecuzione dei container.
 Definiti in `docker-compose.yml`:
 
 - **`ros-backend`** — build da `backend/Dockerfile` (base `ros:humble-ros-base`).
-  Espone la porta `8000` solo sulla rete interna. Avvia i nodi demo e il
-  backend FastAPI tramite `backend/entrypoint.sh`.
+  Gira con `network_mode: host` e ascolta sulla porta `8000` dell'host. Avvia i
+  nodi demo e il backend FastAPI tramite `backend/entrypoint.sh`.
 - **`nginx`** — build da `nginx/Dockerfile`. Pubblica la dashboard su
   `http://localhost:8090` e inoltra `/api` al backend.
 
-I due container condividono la rete bridge `combo-debug-net`; Nginx raggiunge il
-backend tramite l'hostname di servizio `ros-backend`.
+Il backend usa la rete dell'host (`network_mode: host`) e condivide l'IPC con
+l'host (`ipc: host`, per il transport a memoria condivisa di FastDDS) cosi' che
+il discovery DDS e lo scambio dati verso un ROS 2 reale funzionino **senza
+modificare il compose**. Nginx resta su rete bridge e raggiunge il backend via
+`host.docker.internal` (mappato con `extra_hosts: ["host.docker.internal:host-gateway"]`).
 
 ## Comandi
 
@@ -44,7 +47,8 @@ Impostabili nel blocco `environment:` del servizio `ros-backend`:
 
 ## Collegarsi a un grafo ROS esterno
 
-Per monitorare nodi su un'altra macchina/host, allinea `ROS_DOMAIN_ID` e la
-configurazione di rete DDS, ed eventualmente avvia il container con
-`network_mode: host` (Linux) cosi' che il discovery DDS funzioni.
-```
+La rete e' gia' condivisa con l'host (`network_mode: host`): per monitorare nodi
+su un'altra macchina/host basta allineare `ROS_DOMAIN_ID` (e l'eventuale
+`RMW_IMPLEMENTATION`), anche a caldo dalla UI, senza modificare il compose.
+Dettagli e casi particolari (Discovery Server, log) in
+[`../ros/real-ros.md`](../ros/real-ros.md).

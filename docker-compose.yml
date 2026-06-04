@@ -14,6 +14,14 @@
 # Il backend deve risiedere nello stesso container dei nodi ROS per condividere
 # il grafo ROS 2 (stesso ROS_DOMAIN_ID / stesso ambiente DDS) ed avere accesso
 # diretto ai comandi `ros2 ...` e alla cartella dei log (~/.ros/log).
+#
+# Rete: il servizio `ros-backend` usa `network_mode: host`. Questo e' cio' che
+# permette al "Collega a ROS reale" di funzionare SENZA che l'utente debba
+# modificare questo file: la discovery DDS di ROS 2 avviene via multicast UDP,
+# che la rete bridge di Docker NON inoltra. Condividendo lo stack di rete
+# dell'host, il backend vede da subito lo stesso grafo ROS 2 visibile dall'host
+# (robot reale o nodi locali) oltre a continuare a vedere i nodi demo interni.
+# Nginx resta su rete bridge e raggiunge il backend tramite l'host-gateway.
 # =============================================================================
 
 services:
@@ -22,18 +30,27 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     container_name: combo-debug-ros-backend
+    # Condivide lo stack di rete dell'host: indispensabile per la discovery DDS
+    # verso un ROS 2 reale (multicast). Con host network il backend ascolta
+    # direttamente su localhost:8000 dell'host (niente `expose`/`networks`).
+    network_mode: host
+    # Condivide /dev/shm con l'host. FastDDS usa di default il transport a
+    # memoria condivisa (SHM) tra partecipanti sullo stesso host: senza un
+    # /dev/shm comune, il backend NON vedrebbe i nodi ROS reali in esecuzione
+    # sull'host (o in altri container), pur essendo sulla stessa rete. Con
+    # `ipc: host` la discovery e lo scambio dati con il ROS reale funzionano
+    # subito, sempre senza modifiche manuali a questo file.
+    ipc: host
     environment:
-      # Dominio DDS condiviso da backend e nodi demo.
-      ROS_DOMAIN_ID: "0"
+      # Dominio DDS condiviso da backend e nodi (demo o robot reale).
+      # Allinealo al ROS_DOMAIN_ID del robot, oppure cambialo a caldo dalla UI.
+      ROS_DOMAIN_ID: "1"
       # Implementazione RMW di default per Humble.
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
       # Avvia automaticamente i nodi demo all'avvio del container.
+      # Imposta "0" per osservare SOLO il ROS reale (vedi docs/ros/real-ros.md).
       COMBO_DEBUG_START_DEMO: "1"
     # I log ROS vengono scritti in /root/.ros/log dentro il container.
-    expose:
-      - "8000"
-    networks:
-      - combo-debug-net
     restart: unless-stopped
 
   nginx:
@@ -45,10 +62,8 @@ services:
       - ros-backend
     ports:
       - "8090:80"
-    networks:
-      - combo-debug-net
+    # Permette a nginx (su rete bridge) di raggiungere il backend in ascolto
+    # sull'host tramite il nome speciale `host.docker.internal`.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
-
-networks:
-  combo-debug-net:
-    driver: bridge

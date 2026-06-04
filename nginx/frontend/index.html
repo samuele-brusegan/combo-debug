@@ -18,7 +18,9 @@
       <div class="d-flex align-items-center flex-wrap gap-3">
         <h1 class="h4 mb-0 me-2">Combo-Debug</h1>
         <span id="backend-status" class="badge text-bg-secondary">backend: ...</span>
+        <span id="connection-badge" class="badge d-none"></span>
         <span id="last-update" class="muted">in attesa...</span>
+        <span id="clock" class="badge text-bg-secondary font-monospace" title="Ora esatta corrente"></span>
 
         <div class="ms-auto d-flex align-items-center flex-wrap gap-2">
           <button
@@ -36,6 +38,14 @@
             title="Espandi tutti i pannelli"
           >
             Espandi tutti
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-success"
+            data-bs-toggle="modal"
+            data-bs-target="#connection-modal"
+          >
+            Collega a ROS reale
           </button>
           <button
             type="button"
@@ -90,6 +100,106 @@
         <div class="form-check form-switch">
           <input class="form-check-input panel-toggle" type="checkbox" id="toggle-logs" data-panel="panel-logs" checked />
           <label class="form-check-label" for="toggle-logs">Log dei nodi</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Collegamento a un ROS 2 reale: riconfigurazione a caldo (no riavvio). -->
+    <div class="modal fade" id="connection-modal" tabindex="-1" aria-labelledby="connection-title" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 class="modal-title h5" id="connection-title">Collega a un ROS 2 reale</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body">
+            <p class="muted">
+              Ricollega la dashboard a un grafo ROS reale (un robot o una rete di
+              nodi esistente) <strong>senza riavviare</strong> i container: i nuovi
+              parametri vengono applicati a caldo alle interrogazioni successive.
+            </p>
+
+            <!-- Istruzioni passo passo -->
+            <ol class="mb-4">
+              <li>
+                Nessuna modifica al <code>docker-compose.yml</code>: il backend gira
+                gia' con <code>network_mode: host</code> ed e' quindi sulla
+                <strong>stessa rete</strong> dell'host/robot (vedi
+                <code>docs/ros/real-ros.md</code>).
+              </li>
+              <li>
+                Imposta lo stesso <strong>ROS_DOMAIN_ID</strong> e la stessa
+                <strong>RMW_IMPLEMENTATION</strong> del robot.
+              </li>
+              <li>
+                Indica i <strong>nodi</strong> e i <strong>topic attesi</strong> reali
+                (ricavabili con <code>ros2 node list</code> e <code>ros2 topic hz</code>).
+              </li>
+              <li>
+                Premi <strong>Verifica</strong> per testare la connessione, poi
+                <strong>Applica e aggiorna</strong>: la dashboard si ricarica subito
+                sui dati reali (i nodi demo, sul dominio 0, spariranno).
+              </li>
+            </ol>
+
+            <form id="connection-form" class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label" for="conn-domain">ROS_DOMAIN_ID</label>
+                <input type="number" min="0" max="232" class="form-control" id="conn-domain" />
+              </div>
+              <div class="col-md-8">
+                <label class="form-label" for="conn-rmw">RMW_IMPLEMENTATION</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="conn-rmw"
+                  list="rmw-options"
+                  placeholder="rmw_fastrtps_cpp"
+                />
+                <datalist id="rmw-options">
+                  <option value="rmw_fastrtps_cpp"></option>
+                  <option value="rmw_cyclonedds_cpp"></option>
+                </datalist>
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="conn-discovery">
+                  ROS_DISCOVERY_SERVER <span class="muted">(opzionale, es. 192.168.1.10:11811)</span>
+                </label>
+                <input type="text" class="form-control" id="conn-discovery" placeholder="vuoto = discovery via multicast" />
+              </div>
+              <div class="col-12">
+                <div class="d-flex align-items-center flex-wrap gap-2">
+                  <button type="button" class="btn btn-outline-info btn-sm" id="connection-discover">
+                    Scopri nodi e topic
+                  </button>
+                  <label class="d-flex align-items-center gap-1 mb-0 muted">
+                    freq. minima topic (Hz):
+                    <input type="number" min="0" step="0.1" value="1.0" class="form-control form-control-sm" id="discover-hz" style="width: 6rem" />
+                  </label>
+                  <span class="muted">applica i parametri sopra e rileva nodi/topic dal grafo reale.</span>
+                </div>
+                <div id="discovery-result" class="mt-2"></div>
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="conn-nodes">Nodi attesi <span class="muted">(auto-rilevati, modificabili — separati da virgola)</span></label>
+                <input type="text" class="form-control font-monospace" id="conn-nodes" placeholder="usa 'Scopri nodi e topic' oppure scrivili a mano" />
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="conn-topics">Topic attesi <span class="muted">(auto-rilevati, modificabili — nome=freq_min_hz)</span></label>
+                <input type="text" class="form-control font-monospace" id="conn-topics" placeholder="usa 'Scopri nodi e topic' oppure scrivili a mano" />
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="conn-logdir">Cartella log <span class="muted">(opzionale)</span></label>
+                <input type="text" class="form-control font-monospace" id="conn-logdir" placeholder="/root/.ros/log" />
+              </div>
+            </form>
+
+            <div id="connection-result" class="mt-3"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" id="connection-test">Verifica</button>
+            <button type="button" class="btn btn-success" id="connection-apply">Applica e aggiorna</button>
+          </div>
         </div>
       </div>
     </div>

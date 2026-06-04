@@ -8,9 +8,11 @@ configurazione facilmente sostituibile nei test.
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,12 +28,22 @@ class Settings(BaseSettings):
         ros_log_dir: Cartella radice dei log ROS 2 da analizzare.
         ros_command_timeout: Timeout (secondi) per ogni SysCall alla CLI ros2.
         topic_hz_window: Durata (secondi) della finestra di misura di `ros2 topic hz`.
+        topic_hz_attempts: Numero di tentativi di misura per topic. Una misura puo'
+            fallire in modo transitorio (finestra troppo corta per catturare
+            abbastanza messaggi): si ritenta prima di dichiarare il topic "sotto
+            soglia", evitando falsi positivi sui topic sani.
         expected_topics: Topic attesi usati dall'euristica di nodo bloccato,
             nel formato ``topic=frequenza_minima_hz`` separati da virgola.
         expected_nodes: Nodi che ci si aspetta siano sempre presenti nel grafo.
             Se uno di questi e' assente viene mostrato in ROSSO (crashato/offline).
             Elenco separato da virgola.
         cors_origins: Origini consentite per le richieste CORS del frontend.
+        start_demo: ``True`` se i nodi ROS 2 di esempio sono stati avviati nel
+            container (variabile ``COMBO_DEBUG_START_DEMO``). Usato per segnalare
+            in dashboard la "Modalita' DEMO".
+        boot_ros_domain_id: ``ROS_DOMAIN_ID`` rilevato all'avvio del processo,
+            cioe' il dominio su cui girano i nodi demo. Confrontato col dominio
+            corrente per capire se si sta ancora osservando la demo.
     """
 
     model_config = SettingsConfigDict(env_prefix="COMBO_DEBUG_", env_file=None)
@@ -40,10 +52,15 @@ class Settings(BaseSettings):
     api_prefix: str = "/api"
     ros_log_dir: Path = Path.home() / ".ros" / "log"
     ros_command_timeout: float = 8.0
-    topic_hz_window: float = 4.0
+    topic_hz_window: float = 6.0
+    topic_hz_attempts: int = 2
     expected_topics: str = "/chatter=0.5,/heartbeat=1.0"
     expected_nodes: str = "/talker,/listener,/stuck_spinner,/crasher"
     cors_origins: list[str] = ["*"]
+    start_demo: bool = True
+    boot_ros_domain_id: str = Field(
+        default_factory=lambda: os.environ.get("ROS_DOMAIN_ID", "0")
+    )
 
     def parse_expected_nodes(self) -> list[str]:
         """Restituisce l'elenco dei nomi dei nodi attesi.

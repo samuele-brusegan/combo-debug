@@ -9,20 +9,18 @@ interagiscono. Per i dettagli implementativi rimanda ai documenti di area.
 flowchart LR
     browser["Browser<br/>(frontend Vanilla JS)"]
 
-    subgraph net["rete docker: combo-debug-net"]
-        subgraph c2["Container 2: nginx"]
-            nginx["Nginx<br/>static + reverse proxy"]
-        end
-        subgraph c1["Container 1: ros-backend (ROS 2 Humble)"]
-            api["Backend FastAPI<br/>:8000"]
-            adapter["Adapter ros2 CLI"]
-            nodes["Nodi ROS 2 demo<br/>talker / listener /<br/>stuck_spinner / crasher"]
-            logs[("~/.ros/log")]
-        end
+    subgraph c2["Container 2: nginx (rete bridge)"]
+        nginx["Nginx<br/>static + reverse proxy"]
+    end
+    subgraph c1["Container 1: ros-backend (ROS 2 Humble, network_mode: host)"]
+        api["Backend FastAPI<br/>host :8000"]
+        adapter["Adapter ros2 CLI"]
+        nodes["Nodi ROS 2 demo<br/>talker / listener /<br/>stuck_spinner / crasher"]
+        logs[("~/.ros/log")]
     end
 
     browser -- "HTTP :8090<br/>statici + /api/*" --> nginx
-    nginx -- "proxy /api, /healthz" --> api
+    nginx -- "proxy /api, /healthz<br/>host.docker.internal:8000" --> api
     api --> adapter
     adapter -- "SysCall: ros2 node/topic" --> nodes
     api -- "legge file di log" --> logs
@@ -53,7 +51,8 @@ Il backend deve risiedere **nello stesso container** dei nodi ROS perche':
 Immagine `nginx:alpine`. Svolge due ruoli:
 
 - **web server statico** per il frontend (HTML/CSS/JS);
-- **reverse proxy**: inoltra `/api/*` e `/healthz` verso `ros-backend:8000`.
+- **reverse proxy**: inoltra `/api/*` e `/healthz` verso il backend, che gira con
+  `network_mode: host`, tramite `host.docker.internal:8000`.
 
 Il browser parla quindi solo con Nginx (una sola origine), evitando problemi di
 CORS in produzione.

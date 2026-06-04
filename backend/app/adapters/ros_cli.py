@@ -10,6 +10,7 @@ toccare i service.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -108,6 +109,15 @@ class SubprocessRosCommandRunner:
                 stderr=f"Eseguibile '{self._executable}' non trovato nel PATH.",
             )
 
+        # Forziamo l'output non bufferizzato del processo figlio (la CLI ros2 e'
+        # Python): comandi come `ros2 topic hz` non terminano da soli e li
+        # interrompiamo via timeout (SIGKILL). Con il buffering a blocchi tipico
+        # di uno stdout collegato a una pipe, le righe gia' prodotte resterebbero
+        # nel buffer del figlio e andrebbero perse alla kill, causando misure
+        # "vuote" intermittenti. ``PYTHONUNBUFFERED`` fa sì che ogni riga venga
+        # scaricata subito e quindi catturata anche in caso di timeout.
+        child_env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+
         try:
             completed = subprocess.run(
                 command,
@@ -115,6 +125,7 @@ class SubprocessRosCommandRunner:
                 text=True,
                 timeout=effective_timeout,
                 check=False,
+                env=child_env,
             )
         except subprocess.TimeoutExpired as exc:
             raw_partial: object = exc.stdout

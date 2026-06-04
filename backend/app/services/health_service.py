@@ -56,12 +56,36 @@ class TopicFrequencyCheck:
     def _measure_hz(self, topic: str) -> float | None:
         """Misura la frequenza di pubblicazione di un topic.
 
+        La misura entro una finestra fissa puo' fallire in modo transitorio (es.
+        per un topic a bassa frequenza la finestra cattura troppo pochi messaggi
+        perche' `ros2 topic hz` emetta una riga ``average rate``). Per evitare
+        falsi positivi sui topic sani si ritenta fino a ``topic_hz_attempts``
+        volte, fermandosi al primo successo; un topic davvero silenzioso fallira'
+        comunque tutti i tentativi.
+
         Args:
             topic: Nome del topic da misurare.
 
         Returns:
-            La frequenza media in Hz, oppure ``None`` se non e' stato possibile
-            misurarla (nessun messaggio nella finestra).
+            La frequenza media in Hz, oppure ``None`` se nessun tentativo e'
+            riuscito a misurarla (nessun messaggio nella finestra).
+        """
+        attempts = max(1, self._settings.topic_hz_attempts)
+        for _ in range(attempts):
+            measured = self._measure_hz_once(topic)
+            if measured is not None:
+                return measured
+        return None
+
+    def _measure_hz_once(self, topic: str) -> float | None:
+        """Esegue una singola misura di frequenza su un topic.
+
+        Args:
+            topic: Nome del topic da misurare.
+
+        Returns:
+            La frequenza media in Hz dell'ultima riga ``average rate`` prodotta,
+            oppure ``None`` se non ce ne sono.
         """
         # `ros2 topic hz` non termina da solo: lo interrompiamo via timeout e
         # leggiamo l'output parziale gia' prodotto.

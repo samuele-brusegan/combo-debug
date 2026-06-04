@@ -12,11 +12,18 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Pacchetti ROS necessari ai nodi demo e ai comandi diagnostici usati dal
 # backend (ros2 node/topic fanno parte di ros2cli, gia' presente in ros-base;
 # std_msgs serve ai nodi di esempio).
+#
+# Vengono installate ENTRAMBE le RMW comuni (Fast DDS e Cyclone DDS): i nodi
+# ROS 2 comunicano solo se usano la stessa RMW, quindi il backend deve poter
+# parlare la "lingua" del robot reale. Avere entrambe permette di passare a
+# `rmw_cyclonedds_cpp` (o tornare a Fast DDS) dalla UI / via RMW_IMPLEMENTATION
+# senza ricostruire l'immagine ne' modificare il docker-compose.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         python3-pip \
         ros-humble-std-msgs \
         ros-humble-rmw-fastrtps-cpp \
+        ros-humble-rmw-cyclonedds-cpp \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

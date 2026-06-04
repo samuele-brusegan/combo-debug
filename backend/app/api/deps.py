@@ -12,6 +12,7 @@ from functools import lru_cache
 
 from app.adapters.ros_cli import RosCommandRunner, SubprocessRosCommandRunner
 from app.core.config import Settings, get_settings
+from app.services.connection_service import ConnectionService
 from app.services.env_service import EnvService
 from app.services.health_service import (
     HealthService,
@@ -69,3 +70,16 @@ def get_health_service() -> HealthService:
     settings: Settings = get_settings()
     checks = [TopicFrequencyCheck(runner=get_runner(), settings=settings)]
     return HealthService(checks=checks)
+
+
+@lru_cache
+def get_connection_service() -> ConnectionService:
+    """Costruisce il servizio di connessione runtime al grafo ROS 2.
+
+    Singleton (``lru_cache``) cosi' che condivida lo stesso `Settings` e runner
+    degli altri service: le riconfigurazioni a caldo si riflettono ovunque.
+
+    Returns:
+        Un `ConnectionService` pronto all'uso.
+    """
+    return ConnectionService(runner=get_runner(), settings=get_settings())

@@ -112,3 +112,90 @@ class HealthReport(BaseModel):
     status: NodeStatus
     topics: list[TopicHealth] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+
+
+class ConnectionConfig(BaseModel):
+    """Configurazione runtime della connessione al grafo ROS 2.
+
+    Rappresenta i parametri che determinano *quale* grafo ROS il backend ispeziona
+    tramite la CLI ``ros2``. Possono essere modificati a caldo (senza riavviare il
+    container) dalla UI: i nuovi valori vengono applicati alle SysCall successive.
+
+    Attributes:
+        ros_domain_id: Dominio DDS condiviso (``ROS_DOMAIN_ID``).
+        rmw_implementation: Implementazione RMW (``RMW_IMPLEMENTATION``).
+        ros_discovery_server: Indirizzo del Discovery Server di Fast DDS
+            (``ROS_DISCOVERY_SERVER``); stringa vuota se non usato.
+        expected_nodes: Nodi attesi (assenti ⇒ rosso), separati da virgola.
+        expected_topics: Topic attesi ``nome=freq_min_hz`` separati da virgola.
+        ros_log_dir: Cartella dei log analizzata dal parser.
+        demo_mode: ``True`` se la dashboard sta osservando i nodi ROS 2 di
+            esempio (demo avviata e dominio ancora quello di boot).
+        start_demo: ``True`` se i nodi demo sono stati avviati nel container.
+    """
+
+    ros_domain_id: str = "0"
+    rmw_implementation: str = ""
+    ros_discovery_server: str = ""
+    expected_nodes: str = ""
+    expected_topics: str = ""
+    ros_log_dir: str = ""
+    demo_mode: bool = False
+    start_demo: bool = False
+
+
+class ConnectionUpdate(BaseModel):
+    """Aggiornamento parziale della configurazione di connessione.
+
+    Tutti i campi sono opzionali: vengono applicati solo quelli valorizzati,
+    cosi' la UI puo' inviare anche un sottoinsieme dei parametri.
+
+    Attributes:
+        ros_domain_id: Nuovo ``ROS_DOMAIN_ID`` (opzionale).
+        rmw_implementation: Nuova ``RMW_IMPLEMENTATION`` (opzionale).
+        ros_discovery_server: Nuovo ``ROS_DISCOVERY_SERVER`` (vuoto = rimuovi).
+        expected_nodes: Nuovo elenco nodi attesi (opzionale).
+        expected_topics: Nuovo elenco topic attesi (opzionale).
+        ros_log_dir: Nuova cartella dei log (opzionale).
+    """
+
+    ros_domain_id: str | None = None
+    rmw_implementation: str | None = None
+    ros_discovery_server: str | None = None
+    expected_nodes: str | None = None
+    expected_topics: str | None = None
+    ros_log_dir: str | None = None
+
+
+class ConnectionProbe(BaseModel):
+    """Esito di una verifica della connessione al grafo ROS 2.
+
+    Attributes:
+        available: ``True`` se la CLI ``ros2`` e' disponibile ed eseguibile.
+        node_count: Numero di nodi rilevati nel grafo con la config corrente.
+        nodes: Nomi dei nodi rilevati.
+        detail: Messaggio descrittivo dell'esito (utile in caso di errore).
+    """
+
+    available: bool
+    node_count: int
+    nodes: list[str] = Field(default_factory=list)
+    detail: str = ""
+
+
+class ConnectionDiscovery(BaseModel):
+    """Nodi e topic rilevati nel grafo ROS 2 con la configurazione corrente.
+
+    Usato dalla UI per popolare i nodi/topic attesi senza digitarli a mano.
+
+    Attributes:
+        available: ``True`` se la CLI ``ros2`` e' disponibile ed eseguibile.
+        nodes: Nomi dei nodi rilevati nel grafo.
+        topics: Nomi dei topic rilevati nel grafo.
+        detail: Messaggio descrittivo dell'esito (utile in caso di errore).
+    """
+
+    available: bool
+    nodes: list[str] = Field(default_factory=list)
+    topics: list[str] = Field(default_factory=list)
+    detail: str = ""

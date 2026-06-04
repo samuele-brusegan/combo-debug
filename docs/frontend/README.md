@@ -72,6 +72,25 @@ formattazione dei log.
   stato di collasso. Le impostazioni sono **solo di sessione** (nessuna persistenza
   in `localStorage`): si ripristinano ai default al ricaricamento della pagina.
 
+## Collegamento a un ROS 2 reale (a caldo)
+
+- Il pulsante **"Collega a ROS reale"** apre un modal con istruzioni passo passo e
+  un form (dominio, RMW, discovery server, nodi/topic attesi, cartella log).
+- All'apertura il form viene popolato da `GET /api/connection`. **Scopri nodi e
+  topic** applica i valori e chiama `GET /api/connection/discover`, mostrando
+  nodi/topic del grafo come checkbox: "Usa selezionati" compila i campi attesi
+  (niente digitazione manuale). **Verifica** applica i valori
+  (`PUT /api/connection`) e interroga il grafo (`POST /api/connection/test`)
+  mostrando i nodi rilevati. **Applica e aggiorna** applica i valori, chiude il
+  modal e lancia subito `refreshAll()`.
+- Tutto avviene **senza ricaricare la pagina ne' riavviare i container**:
+  sfrutta la dinamicita' del DOM e la riconfigurazione a caldo del backend. Vedi
+  [`../ros/real-ros.md`](../ros/real-ros.md).
+- In header un badge indica la sorgente dati: **"Modalità DEMO"** (giallo) quando
+  si stanno osservando i nodi di esempio, **"ROS reale · dominio N"** (verde)
+  altrimenti. E' aggiornato ad ogni `refreshAll()` da `refreshConnectionBadge()`
+  in base a `demo_mode` restituito da `GET /api/connection`.
+
 ## Sicurezza
 
 Tutti i valori provenienti dal backend passano per `escapeHtml()` prima di

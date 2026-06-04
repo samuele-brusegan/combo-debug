@@ -63,3 +63,44 @@ Report euristico basato sulla frequenza dei topic attesi.
   "notes": ["Topic '/heartbeat' sotto soglia: ..."]
 }
 ```
+
+## Connessione runtime al grafo ROS 2
+
+Permette di ricollegare il backend a un grafo ROS reale **a caldo**, senza
+riavviare il container: i parametri DDS vengono scritti in `os.environ` (quindi
+ereditati dalle SysCall `ros2` successive) e i nodi/topic attesi aggiornati
+sulle `Settings` condivise. Vedi [`../ros/real-ros.md`](../ros/real-ros.md).
+
+### `GET /api/connection`
+Configurazione di connessione attualmente attiva.
+```json
+{
+  "ros_domain_id": "0",
+  "rmw_implementation": "rmw_fastrtps_cpp",
+  "ros_discovery_server": "",
+  "expected_nodes": "/talker,/listener",
+  "expected_topics": "/chatter=0.5",
+  "ros_log_dir": "/root/.ros/log"
+}
+```
+
+### `PUT /api/connection`
+Applica a caldo i parametri (tutti opzionali; `ros_discovery_server` vuoto =
+discovery via multicast). Restituisce la configurazione risultante.
+```json
+// request (sottoinsieme dei campi)
+{ "ros_domain_id": "5", "expected_nodes": "/robot_state_publisher,/lidar" }
+```
+
+### `POST /api/connection/test`
+Verifica la connessione interrogando il grafo con la config corrente.
+```json
+{ "available": true, "node_count": 3, "nodes": ["/lidar", "/robot_state_publisher", "/tf"], "detail": "Rilevati 3 nodi nel grafo." }
+```
+
+### `GET /api/connection/discover`
+Rileva nodi e topic presenti nel grafo con la config corrente, per popolare i
+valori attesi dalla UI senza digitarli a mano.
+```json
+{ "available": true, "nodes": ["/lidar", "/robot_state_publisher"], "topics": ["/scan", "/tf"], "detail": "Rilevati 2 nodi e 2 topic nel grafo." }
+```
