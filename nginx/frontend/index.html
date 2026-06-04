@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Combo-Debug - Dashboard ROS 2</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Combo-Debug</h1>
+      <div class="status-line">
+        <span id="backend-status" class="pill pill-unknown">backend: ...</span>
+        <span id="last-update" class="muted">in attesa...</span>
+        <label class="autorefresh">
+          <input type="checkbox" id="autorefresh" checked />
+          aggiornamento automatico
+        </label>
+      </div>
+    </header>
+
+    <main class="grid">
+      <!-- Requisito 1: stato dei nodi con color coding -->
+      <section class="card" aria-labelledby="nodes-title">
+        <h2 id="nodes-title">Nodi ROS 2</h2>
+        <ul id="nodes-list" class="node-list">
+          <li class="muted">Caricamento...</li>
+        </ul>
+      </section>
+
+      <!-- Requisito 4: report euristico (spin bloccato) -->
+      <section class="card" aria-labelledby="health-title">
+        <h2 id="health-title">Salute &amp; spin bloccato</h2>
+        <div id="health-status" class="muted">Caricamento...</div>
+        <table class="data-table" id="health-table">
+          <thead>
+            <tr>
+              <th>Topic</th>
+              <th>Attesa (Hz)</th>
+              <th>Misurata (Hz)</th>
+              <th>Stato</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- Requisito 2: variabili d'ambiente ROS -->
+      <section class="card" aria-labelledby="env-title">
+        <h2 id="env-title">Variabili d'ambiente ROS</h2>
+        <table class="data-table" id="env-table">
+          <thead>
+            <tr>
+              <th>Variabile</th>
+              <th>Valore</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colspan="2" class="muted">Caricamento...</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Requisito 4: bridge rqt -->
+      <section class="card" aria-labelledby="rqt-title">
+        <h2 id="rqt-title">Tool diagnostici (rqt)</h2>
+        <ul id="rqt-list" class="rqt-list">
+          <li class="muted">Caricamento...</li>
+        </ul>
+      </section>
+
+      <!-- Requisito 3: log parser -->
+      <section class="card card-wide" aria-labelledby="logs-title">
+        <h2 id="logs-title">Log dei nodi</h2>
+        <div class="logs-controls">
+          <label>
+            Filtro livello:
+            <select id="log-level">
+              <option value="">tutti</option>
+              <option value="error">solo errori</option>
+              <option value="warn">solo warning</option>
+              <option value="error,warn" selected>errori + warning</option>
+            </select>
+          </label>
+          <span id="log-summary" class="muted"></span>
+        </div>
+        <div id="logs-container" class="logs-container">
+          <p class="muted">Caricamento...</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer muted">
+      Combo-Debug &middot; monitoraggio ROS 2 via REST &middot; polling ogni
+      <span id="poll-seconds"></span>s
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
