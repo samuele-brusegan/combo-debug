@@ -1,0 +1,11 @@
+# Development / quality tooling.
+# Questi strumenti sono l'equivalente Python dello standard PSR-12 di PHP:
+#   * black -> formattazione automatica deterministica
+#   * ruff  -> linting (PEP 8, import order, ecc.)
+#   * mypy  -> verifica statica dei type hints (PEP 484)
+-r requirements.txt
+black==24.4.2
+ruff==0.4.9
+mypy==1.10.0
+pytest==8.2.2
+httpx==0.27.0

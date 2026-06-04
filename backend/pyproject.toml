@@ -1,0 +1,38 @@
+# =============================================================================
+# Configurazione tooling di qualita' del backend Combo-Debug.
+#
+# Questo file definisce lo stile di codice del progetto Python, ovvero
+# l'equivalente dello standard PSR-12 richiesto per PHP:
+#   * black : formattazione (1TBS-friendly, riga 88 colonne)
+#   * ruff  : linting PEP 8 + ordinamento import + regole bugbear
+#   * mypy  : type checking statico (PEP 484)
+# =============================================================================
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+# E/W = pycodestyle (PEP 8), F = pyflakes, I = isort, B = bugbear,
+# UP = pyupgrade, D = pydocstyle (docstring obbligatorie - il "JavaDoc" Python).
+# B008 e' escluso: l'uso di Depends()/Query() nei default e' il pattern
+# canonico di FastAPI, non un bug.
+select = ["E", "W", "F", "I", "B", "UP", "D"]
+ignore = ["D203", "D213", "B008"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
