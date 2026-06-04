@@ -1,0 +1,54 @@
+# =============================================================================
+# Combo-Debug - Orchestrazione dei container
+# =============================================================================
+# L'applicazione e' composta da due container, come da architettura richiesta:
+#
+#   * ros-backend : immagine basata su ROS 2 Humble. Contiene sia i nodi ROS 2
+#                   di esempio sia il backend Python/FastAPI che li ispeziona
+#                   tramite SysCall (ros2 CLI). E' il "cuore" diagnostico.
+#
+#   * nginx       : reverse-proxy + web server statico. Serve il frontend
+#                   Vanilla JS/HTML/CSS e inoltra le chiamate /api verso il
+#                   backend FastAPI.
+#
+# Il backend deve risiedere nello stesso container dei nodi ROS per condividere
+# il grafo ROS 2 (stesso ROS_DOMAIN_ID / stesso ambiente DDS) ed avere accesso
+# diretto ai comandi `ros2 ...` e alla cartella dei log (~/.ros/log).
+# =============================================================================
+
+services:
+  ros-backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: combo-debug-ros-backend
+    environment:
+      # Dominio DDS condiviso da backend e nodi demo.
+      ROS_DOMAIN_ID: "0"
+      # Implementazione RMW di default per Humble.
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+      # Avvia automaticamente i nodi demo all'avvio del container.
+      COMBO_DEBUG_START_DEMO: "1"
+    # I log ROS vengono scritti in /root/.ros/log dentro il container.
+    expose:
+      - "8000"
+    networks:
+      - combo-debug-net
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: combo-debug-nginx
+    depends_on:
+      - ros-backend
+    ports:
+      - "8090:80"
+    networks:
+      - combo-debug-net
+    restart: unless-stopped
+
+networks:
+  combo-debug-net:
+    driver: bridge

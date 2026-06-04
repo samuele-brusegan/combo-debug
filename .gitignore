@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.env
+
+# Mypy / pytest / ruff caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# ROS 2 build artifacts
+build/
+install/
+log/
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
