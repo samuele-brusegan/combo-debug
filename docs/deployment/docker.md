@@ -42,14 +42,6 @@ Impostabili nel blocco `environment:` del servizio `ros-backend`:
 | `COMBO_DEBUG_START_DEMO`   | `1`                    | Avvia i nodi demo all'avvio.             |
 | `COMBO_DEBUG_*`            | vedi `backend/README`  | Configurazione del backend.              |
 
-## Avvio dei tool grafici rqt
-
-I tool `rqt` richiedono un server X. Di default il backend **non** li lancia: la
-dashboard mostra solo i comandi da eseguire manualmente. Per abilitare il lancio
-diretto via `POST /api/rqt/launch` occorre fornire un `DISPLAY` valido al
-container (montaggio del socket X11), operazione fuori dallo scopo del setup di
-base per ragioni di portabilita' e sicurezza.
-
 ## Collegarsi a un grafo ROS esterno
 
 Per monitorare nodi su un'altra macchina/host, allinea `ROS_DOMAIN_ID` e la

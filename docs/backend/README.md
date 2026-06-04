@@ -19,8 +19,7 @@ backend/
 │   │   ├── node_service.py
 │   │   ├── env_service.py
 │   │   ├── log_service.py
-│   │   ├── health_service.py
-│   │   └── rqt_service.py
+│   │   └── health_service.py
 │   └── api/
 │       ├── deps.py        # Dependency injection (composition root)
 │       └── routes/        # Router REST (uno per area)

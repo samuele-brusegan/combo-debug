@@ -1,102 +1,248 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" data-bs-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Combo-Debug - Dashboard ROS 2</title>
+    <!-- Bootstrap 5 via CDN (tema scuro abilitato da data-bs-theme sull'<html>). -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="app-header">
-      <h1>Combo-Debug</h1>
-      <div class="status-line">
-        <span id="backend-status" class="pill pill-unknown">backend: ...</span>
+    <header class="app-header border-bottom px-4 py-3">
+      <div class="d-flex align-items-center flex-wrap gap-3">
+        <h1 class="h4 mb-0 me-2">Combo-Debug</h1>
+        <span id="backend-status" class="badge text-bg-secondary">backend: ...</span>
         <span id="last-update" class="muted">in attesa...</span>
-        <label class="autorefresh">
-          <input type="checkbox" id="autorefresh" checked />
-          aggiornamento automatico
-        </label>
+
+        <div class="ms-auto d-flex align-items-center flex-wrap gap-2">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            id="collapse-all"
+            title="Collassa tutti i pannelli"
+          >
+            Collassa tutti
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            id="expand-all"
+            title="Espandi tutti i pannelli"
+          >
+            Espandi tutti
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-primary"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#settings-panel"
+            aria-controls="settings-panel"
+          >
+            Impostazioni
+          </button>
+        </div>
       </div>
     </header>
 
-    <main class="grid">
-      <!-- Requisito 1: stato dei nodi con color coding -->
-      <section class="card" aria-labelledby="nodes-title">
-        <h2 id="nodes-title">Nodi ROS 2</h2>
-        <ul id="nodes-list" class="node-list">
-          <li class="muted">Caricamento...</li>
-        </ul>
-      </section>
-
-      <!-- Requisito 4: report euristico (spin bloccato) -->
-      <section class="card" aria-labelledby="health-title">
-        <h2 id="health-title">Salute &amp; spin bloccato</h2>
-        <div id="health-status" class="muted">Caricamento...</div>
-        <table class="data-table" id="health-table">
-          <thead>
-            <tr>
-              <th>Topic</th>
-              <th>Attesa (Hz)</th>
-              <th>Misurata (Hz)</th>
-              <th>Stato</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </section>
-
-      <!-- Requisito 2: variabili d'ambiente ROS -->
-      <section class="card" aria-labelledby="env-title">
-        <h2 id="env-title">Variabili d'ambiente ROS</h2>
-        <table class="data-table" id="env-table">
-          <thead>
-            <tr>
-              <th>Variabile</th>
-              <th>Valore</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colspan="2" class="muted">Caricamento...</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
-      <!-- Requisito 4: bridge rqt -->
-      <section class="card" aria-labelledby="rqt-title">
-        <h2 id="rqt-title">Tool diagnostici (rqt)</h2>
-        <ul id="rqt-list" class="rqt-list">
-          <li class="muted">Caricamento...</li>
-        </ul>
-      </section>
-
-      <!-- Requisito 3: log parser -->
-      <section class="card card-wide" aria-labelledby="logs-title">
-        <h2 id="logs-title">Log dei nodi</h2>
-        <div class="logs-controls">
-          <label>
-            Filtro livello:
-            <select id="log-level">
-              <option value="">tutti</option>
-              <option value="error">solo errori</option>
-              <option value="warn">solo warning</option>
-              <option value="error,warn" selected>errori + warning</option>
-            </select>
-          </label>
-          <span id="log-summary" class="muted"></span>
+    <!-- Pannello impostazioni: mostra/nascondi pannelli + preferenze. -->
+    <div
+      class="offcanvas offcanvas-end"
+      tabindex="-1"
+      id="settings-panel"
+      aria-labelledby="settings-title"
+    >
+      <div class="offcanvas-header border-bottom">
+        <h2 class="offcanvas-title h5 mb-0" id="settings-title">Impostazioni</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Chiudi"></button>
+      </div>
+      <div class="offcanvas-body">
+        <div class="mb-3 form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="autorefresh" checked />
+          <label class="form-check-label" for="autorefresh">Aggiornamento automatico</label>
         </div>
-        <div id="logs-container" class="logs-container">
-          <p class="muted">Caricamento...</p>
+
+        <h3 class="h6 text-uppercase muted mt-4">Visibilita' pannelli</h3>
+        <p class="muted small">
+          Nascondi i pannelli che non ti servono. I pannelli collassati mostrano
+          un pallino lampeggiante (giallo/rosso) se contengono problemi.
+        </p>
+
+        <!-- Le checkbox controllano la visibilita' dei rispettivi pannelli
+             tramite l'attributo data-panel (gestito da app.js). -->
+        <div class="form-check form-switch">
+          <input class="form-check-input panel-toggle" type="checkbox" id="toggle-nodes" data-panel="panel-nodes" checked />
+          <label class="form-check-label" for="toggle-nodes">Nodi ROS 2</label>
         </div>
-      </section>
+        <div class="form-check form-switch">
+          <input class="form-check-input panel-toggle" type="checkbox" id="toggle-health" data-panel="panel-health" checked />
+          <label class="form-check-label" for="toggle-health">Salute &amp; spin bloccato</label>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input panel-toggle" type="checkbox" id="toggle-env" data-panel="panel-env" checked />
+          <label class="form-check-label" for="toggle-env">Variabili d'ambiente ROS</label>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input panel-toggle" type="checkbox" id="toggle-logs" data-panel="panel-logs" checked />
+          <label class="form-check-label" for="toggle-logs">Log dei nodi</label>
+        </div>
+      </div>
+    </div>
+
+    <main class="container-fluid p-4">
+      <div class="row g-3">
+        <!-- Requisito 1: stato dei nodi con color coding -->
+        <section class="col-12 col-lg-6" id="panel-nodes">
+          <div class="card h-100">
+            <div class="card-header d-flex align-items-center">
+              <h2 class="h6 mb-0">Nodi ROS 2</h2>
+              <span class="status-dot ms-2" data-status-dot></span>
+              <button
+                class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#body-nodes"
+                aria-expanded="true"
+              >
+                &#9650;
+              </button>
+            </div>
+            <div class="collapse show" id="body-nodes">
+              <div class="card-body">
+                <ul id="nodes-list" class="node-list">
+                  <li class="muted">Caricamento...</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Requisito 4: report euristico (spin bloccato) -->
+        <section class="col-12 col-lg-6" id="panel-health">
+          <div class="card h-100">
+            <div class="card-header d-flex align-items-center">
+              <h2 class="h6 mb-0">Salute &amp; spin bloccato</h2>
+              <span class="status-dot ms-2" data-status-dot></span>
+              <button
+                class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#body-health"
+                aria-expanded="true"
+              >
+                &#9650;
+              </button>
+            </div>
+            <div class="collapse show" id="body-health">
+              <div class="card-body">
+                <div id="health-status" class="muted mb-2">Caricamento...</div>
+                <table class="table table-sm data-table mb-0" id="health-table">
+                  <thead>
+                    <tr>
+                      <th>Topic</th>
+                      <th>Attesa (Hz)</th>
+                      <th>Misurata (Hz)</th>
+                      <th>Stato</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Requisito 2: variabili d'ambiente ROS -->
+        <section class="col-12 col-lg-6" id="panel-env">
+          <div class="card h-100">
+            <div class="card-header d-flex align-items-center">
+              <h2 class="h6 mb-0">Variabili d'ambiente ROS</h2>
+              <span class="status-dot ms-2" data-status-dot></span>
+              <button
+                class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#body-env"
+                aria-expanded="true"
+              >
+                &#9650;
+              </button>
+            </div>
+            <div class="collapse show" id="body-env">
+              <div class="card-body">
+                <table class="table table-sm data-table mb-0" id="env-table">
+                  <thead>
+                    <tr>
+                      <th>Variabile</th>
+                      <th>Valore</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colspan="2" class="muted">Caricamento...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Requisito 3: log parser -->
+        <section class="col-12" id="panel-logs">
+          <div class="card h-100">
+            <div class="card-header d-flex align-items-center">
+              <h2 class="h6 mb-0">Log dei nodi</h2>
+              <span class="status-dot ms-2" data-status-dot></span>
+              <button
+                class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#body-logs"
+                aria-expanded="true"
+              >
+                &#9650;
+              </button>
+            </div>
+            <div class="collapse show" id="body-logs">
+              <div class="card-body">
+                <div class="logs-controls d-flex align-items-center flex-wrap gap-3 mb-3">
+                  <label class="d-flex align-items-center gap-2 mb-0">
+                    Filtro livello:
+                    <select id="log-level" class="form-select form-select-sm w-auto">
+                      <option value="">tutti</option>
+                      <option value="error">solo errori</option>
+                      <option value="warn">solo warning</option>
+                      <option value="error,warn" selected>errori + warning</option>
+                    </select>
+                  </label>
+                  <span id="log-summary" class="muted"></span>
+                </div>
+                <div id="logs-container" class="logs-container">
+                  <p class="muted">Caricamento...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
 
-    <footer class="app-footer muted">
+    <footer class="app-footer muted border-top px-4 py-3">
       Combo-Debug &middot; monitoraggio ROS 2 via REST &middot; polling ogni
       <span id="poll-seconds"></span>s
     </footer>
 
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+      crossorigin="anonymous"
+    ></script>
     <script src="app.js"></script>
   </body>
 </html>

@@ -17,8 +17,7 @@ si concentra sul monitoraggio di un **ecosistema ROS 2** e fornisce:
 - visione in tempo reale dello stato dei nodi (color-coding verde/rosso);
 - ispezione delle variabili d'ambiente ROS;
 - un log parser centralizzato che evidenzia errori e warning;
-- euristiche avanzate (rilevamento spin bloccato) e un bridge verso i tool
-  grafici `rqt`.
+- euristiche avanzate (rilevamento spin bloccato).
 
 L'aggiornamento dei dati nel frontend avviene tramite **polling REST**.
 
@@ -47,6 +46,7 @@ Dettagli: [`architecture.md`](architecture.md).
   - [`frontend/README.md`](frontend/README.md) — struttura e logica del frontend.
 - **ROS**
   - [`ros/demo-nodes.md`](ros/demo-nodes.md) — nodi ROS 2 di esempio.
+  - [`ros/real-ros.md`](ros/real-ros.md) — aggancio a un ROS 2 reale.
 - **Deployment**
   - [`deployment/docker.md`](deployment/docker.md) — build, configurazione, run.
 

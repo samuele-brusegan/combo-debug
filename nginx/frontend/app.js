@@ -2,7 +2,8 @@
  * Combo-Debug - Logica del frontend (Vanilla JS).
  *
  * Recupera periodicamente i dati dal backend via REST (polling) e aggiorna la
- * dashboard. Nessun framework: solo fetch + manipolazione del DOM.
+ * dashboard. L'impaginazione e i componenti sono di Bootstrap 5; qui si gestisce
+ * il fetch dei dati, la visibilita'/collasso dei pannelli e i pallini di stato.
  * ============================================================================= */
 
 "use strict";
@@ -12,6 +13,18 @@ const POLL_INTERVAL_MS = 5000;
 
 /** Base path delle API (Nginx fa da reverse proxy verso il backend). */
 const API_BASE = "/api";
+
+/**
+ * Severita' corrente di ciascun pannello, usata per il pallino lampeggiante
+ * mostrato quando il pannello e' collassato. Valori: "none" | "yellow" | "red".
+ * @type {Record<string, string>}
+ */
+const panelSeverity = {
+  "panel-nodes": "none",
+  "panel-health": "none",
+  "panel-env": "none",
+  "panel-logs": "none",
+};
 
 /**
  * Esegue una GET JSON verso un endpoint dell'API.
@@ -41,6 +54,41 @@ function dotClass(status) {
 }
 
 /**
+ * Registra la severita' di un pannello e aggiorna il relativo pallino di stato.
+ * @param {string} panelId Id della sezione del pannello (es. "panel-nodes").
+ * @param {string} severity Severita' calcolata: "none" | "yellow" | "red".
+ * @returns {void}
+ */
+function setPanelSeverity(panelId, severity) {
+  panelSeverity[panelId] = severity;
+  updatePanelDot(panelId);
+}
+
+/**
+ * Aggiorna il pallino di stato di un pannello: lampeggia (giallo/rosso) solo se
+ * il pannello e' collassato e contiene problemi; altrimenti resta nascosto.
+ * @param {string} panelId Id della sezione del pannello (es. "panel-nodes").
+ * @returns {void}
+ */
+function updatePanelDot(panelId) {
+  const section = document.getElementById(panelId);
+  if (!section) {
+    return;
+  }
+  const dot = section.querySelector("[data-status-dot]");
+  const body = section.querySelector(".collapse");
+  const collapsed = body ? !body.classList.contains("show") : false;
+  const severity = panelSeverity[panelId];
+
+  dot.classList.remove("blink-yellow", "blink-red");
+  if (collapsed && severity === "red") {
+    dot.classList.add("blink-red");
+  } else if (collapsed && severity === "yellow") {
+    dot.classList.add("blink-yellow");
+  }
+}
+
+/**
  * Aggiorna l'elenco dei nodi con il color-coding (requisito 1).
  * @returns {Promise<void>}
  */
@@ -49,10 +97,17 @@ async function refreshNodes() {
   const nodes = await apiGet("/nodes");
   if (nodes.length === 0) {
     list.innerHTML = '<li class="muted">Nessun nodo rilevato.</li>';
+    setPanelSeverity("panel-nodes", "none");
     return;
   }
   list.innerHTML = "";
+  let severity = "none";
   for (const node of nodes) {
+    if (node.status === "red") {
+      severity = "red";
+    } else if (node.status === "yellow" && severity !== "red") {
+      severity = "yellow";
+    }
     const li = document.createElement("li");
     li.innerHTML =
       `<span class="dot ${dotClass(node.status)}"></span>` +
@@ -60,6 +115,7 @@ async function refreshNodes() {
       `<span class="node-reason">${escapeHtml(node.reason)}</span>`;
     list.appendChild(li);
   }
+  setPanelSeverity("panel-nodes", severity);
 }
 
 /**
@@ -92,42 +148,29 @@ async function refreshHealth() {
   const tbody = document.querySelector("#health-table tbody");
   const report = await apiGet("/health");
 
-  const pillClass = { green: "pill-ok", yellow: "pill-warn", red: "pill-bad" }[report.status];
-  statusEl.innerHTML = `Stato sistema: <span class="pill ${pillClass}">${report.status}</span>`;
+  const badgeClass = {
+    green: "text-bg-success",
+    yellow: "text-bg-warning",
+    red: "text-bg-danger",
+  }[report.status] || "text-bg-secondary";
+  statusEl.innerHTML = `Stato sistema: <span class="badge ${badgeClass}">${report.status}</span>`;
 
   tbody.innerHTML = "";
   for (const topic of report.topics) {
     const tr = document.createElement("tr");
     const measured = topic.measured_hz === null ? "—" : topic.measured_hz;
-    const pill = topic.healthy ? "pill-ok" : "pill-bad";
+    const badge = topic.healthy ? "text-bg-success" : "text-bg-danger";
     const label = topic.healthy ? "ok" : "sotto soglia";
     tr.innerHTML =
       `<td class="mono">${escapeHtml(topic.topic)}</td>` +
       `<td>${topic.expected_hz}</td>` +
       `<td>${measured}</td>` +
-      `<td><span class="pill ${pill}">${label}</span></td>`;
+      `<td><span class="badge ${badge}">${label}</span></td>`;
     tbody.appendChild(tr);
   }
-}
 
-/**
- * Aggiorna l'elenco dei comandi rqt suggeriti (requisito 4).
- * @returns {Promise<void>}
- */
-async function refreshRqt() {
-  const list = document.getElementById("rqt-list");
-  const tools = await apiGet("/rqt/tools");
-  list.innerHTML = "";
-  for (const tool of tools) {
-    const li = document.createElement("li");
-    li.innerHTML =
-      `<strong>${escapeHtml(tool.label)}</strong>` +
-      `<div class="muted">${escapeHtml(tool.description)}</div>` +
-      `<code title="Clicca per copiare">${escapeHtml(tool.command)}</code>`;
-    const code = li.querySelector("code");
-    code.addEventListener("click", () => navigator.clipboard?.writeText(tool.command));
-    list.appendChild(li);
-  }
+  const severity = { red: "red", yellow: "yellow", green: "none" }[report.status] || "none";
+  setPanelSeverity("panel-health", severity);
 }
 
 /**
@@ -151,6 +194,15 @@ async function refreshLogs() {
   document.getElementById("log-summary").textContent =
     `errori: ${summary.error || 0} · warning: ${summary.warn || 0} · ` +
     `fatal: ${summary.fatal || 0} · info: ${summary.info || 0}`;
+
+  // La severita' del pannello log riflette il riepilogo, non il filtro corrente.
+  if ((summary.error || 0) > 0 || (summary.fatal || 0) > 0) {
+    setPanelSeverity("panel-logs", "red");
+  } else if ((summary.warn || 0) > 0) {
+    setPanelSeverity("panel-logs", "yellow");
+  } else {
+    setPanelSeverity("panel-logs", "none");
+  }
 
   if (entries.length === 0) {
     container.innerHTML = '<p class="muted">Nessuna riga di log per il filtro selezionato.</p>';
@@ -176,10 +228,10 @@ async function refreshBackendStatus() {
   try {
     const data = await (await fetch("/healthz")).json();
     badge.textContent = `backend: ok (v${data.version})`;
-    badge.className = "pill pill-ok";
+    badge.className = "badge text-bg-success";
   } catch (_err) {
     badge.textContent = "backend: irraggiungibile";
-    badge.className = "pill pill-bad";
+    badge.className = "badge text-bg-danger";
   }
 }
 
@@ -194,7 +246,6 @@ async function refreshAll() {
     ["nodi", refreshNodes],
     ["env", refreshEnv],
     ["salute", refreshHealth],
-    ["rqt", refreshRqt],
     ["log", refreshLogs],
   ];
   await Promise.all(
@@ -217,7 +268,7 @@ function escapeHtml(value) {
   return div.innerHTML;
 }
 
-// ---- Bootstrap ---------------------------------------------------------------
+// ---- Bootstrap (avvio) -------------------------------------------------------
 
 let pollTimer = null;
 
@@ -233,10 +284,49 @@ function setupPolling() {
   }
 }
 
+/**
+ * Collega le checkbox delle impostazioni alla visibilita' dei pannelli.
+ * @returns {void}
+ */
+function setupPanelToggles() {
+  for (const toggle of document.querySelectorAll(".panel-toggle")) {
+    toggle.addEventListener("change", () => {
+      const section = document.getElementById(toggle.dataset.panel);
+      if (section) {
+        section.classList.toggle("d-none", !toggle.checked);
+      }
+    });
+  }
+}
+
+/**
+ * Collega gli eventi di collasso dei pannelli per aggiornare il pallino di
+ * stato (visibile solo quando collassato) e i bottoni "Collassa/Espandi tutti".
+ * @returns {void}
+ */
+function setupCollapse() {
+  for (const body of document.querySelectorAll("main .collapse")) {
+    const panelId = body.id.replace("body-", "panel-");
+    body.addEventListener("shown.bs.collapse", () => updatePanelDot(panelId));
+    body.addEventListener("hidden.bs.collapse", () => updatePanelDot(panelId));
+  }
+
+  const applyToAll = (show) => {
+    for (const body of document.querySelectorAll("main .collapse")) {
+      const instance = bootstrap.Collapse.getOrCreateInstance(body, { toggle: false });
+      show ? instance.show() : instance.hide();
+    }
+  };
+  document.getElementById("collapse-all").addEventListener("click", () => applyToAll(false));
+  document.getElementById("expand-all").addEventListener("click", () => applyToAll(true));
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("poll-seconds").textContent = String(POLL_INTERVAL_MS / 1000);
   document.getElementById("autorefresh").addEventListener("change", setupPolling);
   document.getElementById("log-level").addEventListener("change", refreshLogs);
+  setupPanelToggles();
+  setupCollapse();
   refreshAll();
   setupPolling();
 });

@@ -1,105 +1,28 @@
 /* =============================================================================
-   Combo-Debug - Stili della dashboard.
-   Palette scura, leggibile, con forte enfasi sul color-coding degli stati.
+   Combo-Debug - Stili custom della dashboard.
+
+   Il layout e i componenti di base (grid, card, tabelle, badge, form) sono
+   forniti da Bootstrap 5 (vedi CDN in index.html, tema scuro via
+   data-bs-theme="dark"). Qui restano solo:
+     * le variabili di color-coding degli stati (verde/rosso/giallo);
+     * i pallini di stato dei nodi e dei pannelli collassati (con lampeggio);
+     * gli stili specifici dei log non coperti da Bootstrap.
    ============================================================================= */
 
 :root {
-  --bg: #0f1419;
-  --card: #1a212b;
-  --card-border: #2a3441;
-  --text: #e6edf3;
-  --muted: #8b98a5;
   --green: #2ea043;
   --red: #f85149;
   --yellow: #d29922;
-  --accent: #388bfd;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  line-height: 1.5;
-}
-
-.app-header {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--card-border);
-}
-
-.app-header h1 {
-  margin: 0 0 0.5rem;
-  font-size: 1.5rem;
-}
-
-.status-line {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.autorefresh {
-  margin-left: auto;
-  font-size: 0.85rem;
-  color: var(--muted);
 }
 
 .muted {
-  color: var(--muted);
+  color: var(--bs-secondary-color);
   font-size: 0.85rem;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-  gap: 1rem;
-  padding: 1.5rem;
-}
-
-.card {
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: 10px;
-  padding: 1rem 1.25rem;
-}
-
-.card-wide {
-  grid-column: 1 / -1;
-}
-
-.card h2 {
-  margin-top: 0;
-  font-size: 1.1rem;
-  border-bottom: 1px solid var(--card-border);
-  padding-bottom: 0.5rem;
-}
-
-/* ---- Nodi ---- */
-.node-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.node-list li {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--card-border);
-}
-
-.node-list li:last-child {
-  border-bottom: none;
-}
-
+/* ---- Pallini di color-coding dei nodi ---- */
 .dot {
+  display: inline-block;
   width: 12px;
   height: 12px;
   border-radius: 50%;
@@ -119,6 +42,68 @@ body {
   box-shadow: 0 0 8px var(--yellow);
 }
 
+/* ---- Pallino di stato del pannello (visibile solo quando collassato) ----
+   data-status-dot e' nascosto di default; app.js aggiunge una classe di
+   severita' (.blink-yellow / .blink-red) solo quando il pannello e' collassato
+   e contiene problemi. */
+.status-dot {
+  display: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.status-dot.blink-yellow {
+  display: inline-block;
+  background: var(--yellow);
+  animation: blink 1s ease-in-out infinite;
+}
+
+.status-dot.blink-red {
+  display: inline-block;
+  background: var(--red);
+  animation: blink 0.7s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 8px currentColor;
+  }
+  50% {
+    opacity: 0.25;
+    box-shadow: none;
+  }
+}
+
+/* Il caret del toggle ruota quando il pannello e' collassato. */
+.collapse-toggle {
+  transition: transform 0.2s ease;
+}
+.collapse-toggle.collapsed {
+  transform: rotate(180deg);
+}
+
+/* ---- Nodi ---- */
+.node-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.node-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.node-list li:last-child {
+  border-bottom: none;
+}
+
 .node-name {
   font-family: monospace;
   font-weight: 600;
@@ -126,103 +111,17 @@ body {
 
 .node-reason {
   margin-left: auto;
-  color: var(--muted);
+  color: var(--bs-secondary-color);
   font-size: 0.8rem;
   text-align: right;
 }
 
-/* ---- Tabelle ---- */
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.88rem;
-}
-
-.data-table th,
-.data-table td {
-  text-align: left;
-  padding: 0.4rem 0.5rem;
-  border-bottom: 1px solid var(--card-border);
-}
-
-.data-table th {
-  color: var(--muted);
-  font-weight: 600;
-}
-
+/* ---- Tabelle: campi monospace ---- */
 .data-table td.mono {
   font-family: monospace;
 }
 
-/* ---- Pill / badge ---- */
-.pill {
-  display: inline-block;
-  padding: 0.1rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.pill-ok {
-  background: rgba(46, 160, 67, 0.2);
-  color: var(--green);
-}
-.pill-bad {
-  background: rgba(248, 81, 73, 0.2);
-  color: var(--red);
-}
-.pill-warn {
-  background: rgba(210, 153, 34, 0.2);
-  color: var(--yellow);
-}
-.pill-unknown {
-  background: rgba(139, 152, 165, 0.2);
-  color: var(--muted);
-}
-
-/* ---- rqt ---- */
-.rqt-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.rqt-list li {
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--card-border);
-}
-
-.rqt-list li:last-child {
-  border-bottom: none;
-}
-
-.rqt-list code {
-  display: block;
-  background: #0b0f14;
-  padding: 0.35rem 0.5rem;
-  border-radius: 6px;
-  margin-top: 0.25rem;
-  font-size: 0.82rem;
-  cursor: pointer;
-}
-
 /* ---- Log ---- */
-.logs-controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.logs-controls select {
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--card-border);
-  border-radius: 6px;
-  padding: 0.25rem 0.4rem;
-}
-
 .logs-container {
   max-height: 360px;
   overflow-y: auto;
@@ -248,14 +147,9 @@ body {
 }
 .log-info,
 .log-debug {
-  border-left-color: var(--card-border);
+  border-left-color: var(--bs-border-color);
 }
 
 .log-source {
-  color: var(--muted);
-}
-
-.app-footer {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--card-border);
+  color: var(--bs-secondary-color);
 }

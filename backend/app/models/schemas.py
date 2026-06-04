@@ -112,20 +112,3 @@ class HealthReport(BaseModel):
     status: NodeStatus
     topics: list[TopicHealth] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
-
-
-class CommandSuggestion(BaseModel):
-    """Comando diagnostico suggerito (es. bridge verso i tool rqt).
-
-    Per ragioni di sicurezza il backend non esegue di default processi grafici:
-    espone invece il comando pronto da lanciare sulla macchina ROS.
-
-    Attributes:
-        label: Etichetta leggibile del comando.
-        command: Comando shell completo da eseguire.
-        description: Spiegazione di cosa fa il comando.
-    """
-
-    label: str
-    command: str
-    description: str

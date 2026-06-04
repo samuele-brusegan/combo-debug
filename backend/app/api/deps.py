@@ -19,7 +19,6 @@ from app.services.health_service import (
 )
 from app.services.log_service import LogService
 from app.services.node_service import NodeService
-from app.services.rqt_service import RqtService
 
 
 @lru_cache
@@ -70,12 +69,3 @@ def get_health_service() -> HealthService:
     settings: Settings = get_settings()
     checks = [TopicFrequencyCheck(runner=get_runner(), settings=settings)]
     return HealthService(checks=checks)
-
-
-def get_rqt_service() -> RqtService:
-    """Costruisce il servizio bridge verso rqt.
-
-    Returns:
-        Un `RqtService`.
-    """
-    return RqtService()

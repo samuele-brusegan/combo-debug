@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.routes import env, health, logs, nodes, rqt
+from app.api.routes import env, health, logs, nodes
 
 # Router radice che monta tutti i sotto-router tematici.
 api_router = APIRouter()
@@ -10,6 +10,5 @@ api_router.include_router(nodes.router)
 api_router.include_router(env.router)
 api_router.include_router(logs.router)
 api_router.include_router(health.router)
-api_router.include_router(rqt.router)
 
 __all__ = ["api_router"]

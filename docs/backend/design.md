@@ -99,7 +99,7 @@ istanza in tutta l'applicazione.
 
 ## Principi SOLID
 
-- **S**ingle Responsibility — un file per area (nodi, env, log, salute, rqt);
+- **S**ingle Responsibility — un file per area (nodi, env, log, salute);
   la configurazione e' isolata in `Settings`.
 - **O**pen/Closed — Strategy per log/salute permette di estendere senza
   modificare il codice esistente.

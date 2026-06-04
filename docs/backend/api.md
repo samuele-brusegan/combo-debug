@@ -63,22 +63,3 @@ Report euristico basato sulla frequenza dei topic attesi.
   "notes": ["Topic '/heartbeat' sotto soglia: ..."]
 }
 ```
-
-## Bridge rqt — requisito 4
-
-### `GET /api/rqt/tools`
-Comandi diagnostici `rqt` suggeriti.
-```json
-[ { "label": "rqt_graph", "command": "ros2 run rqt_graph rqt_graph", "description": "..." } ]
-```
-
-### `POST /api/rqt/launch`
-Avvia (opzionalmente) un tool grafico. Richiede un `DISPLAY` valido nel
-container; restituisce `400` altrimenti. Sono accettati solo i comandi presenti
-nella whitelist di `/api/rqt/tools`.
-```json
-// request
-{ "command": "ros2 run rqt_graph rqt_graph" }
-// response
-{ "pid": 1234 }
-```

@@ -3,8 +3,7 @@
 Web app di **debugging e monitoraggio** per un ecosistema misto, con focus sui
 nodi **ROS 2**. Mostra in tempo reale lo stato dei nodi (color-coding
 verde/rosso), le variabili d'ambiente ROS, i log classificati per severita' ed
-alcune euristiche avanzate (rilevamento spin bloccato, bridge verso i tool
-grafici `rqt`).
+alcune euristiche avanzate (rilevamento spin bloccato).
 
 L'applicazione gira interamente in **Docker** ed e' composta da due container:
 
@@ -33,8 +32,14 @@ I nodi demo vengono avviati automaticamente e dimostrano tutti gli stati:
 2. **Variabili d'ambiente ROS** – ispezione di `ROS_DOMAIN_ID`, `RMW_*`, ecc.
 3. **Log parser centralizzato** – lettura di `~/.ros/log` con evidenziazione di
    errori e warning.
-4. **Funzionalita' avanzate** – euristica di spin bloccato (frequenza topic) e
-   bridge verso i tool `rqt`.
+4. **Funzionalita' avanzate** – euristica di spin bloccato (frequenza topic).
+
+## Collegamento a un ROS 2 reale
+
+Per default vengono avviati nodi ROS 2 di esempio. Per agganciare la dashboard a
+un robot/ecosistema ROS 2 reale (disattivare i nodi demo, condividere dominio e
+rete DDS, configurare nodi/topic attesi e log) vedi
+[`docs/ros/real-ros.md`](docs/ros/real-ros.md).
 
 ## Documentazione
 
