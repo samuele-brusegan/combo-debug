@@ -15,6 +15,7 @@ from __future__ import annotations
 from app.adapters.ros_cli import RosCommandRunner
 from app.core.config import Settings
 from app.models.schemas import NodeStatus, RosNode
+from app.services.rosout_monitor import LISTENER_NODE_NAME
 
 
 class NodeService:
@@ -45,6 +46,10 @@ class NodeService:
         if not result.ok:
             return []
         names = {line.strip() for line in result.stdout.splitlines() if line.strip()}
+        # Escludiamo il nodo di servizio interno che ascolta /rosout: e' parte
+        # del backend, non del sistema ROS osservato.
+        names.discard(f"/{LISTENER_NODE_NAME}")
+        names.discard(LISTENER_NODE_NAME)
         return sorted(names)
 
     def _is_responsive(self, node_name: str) -> bool:

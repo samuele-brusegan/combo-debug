@@ -104,6 +104,19 @@
   border-bottom: none;
 }
 
+/* I nodi sono cliccabili: aprono il modal con i log del nodo. */
+.node-item {
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.12s ease-in-out;
+}
+
+.node-item:hover,
+.node-item:focus-visible {
+  background-color: var(--bs-tertiary-bg, rgba(255, 255, 255, 0.06));
+  outline: none;
+}
+
 .node-name {
   font-family: monospace;
   font-weight: 600;
@@ -121,35 +134,138 @@
   font-family: monospace;
 }
 
-/* ---- Log ---- */
-.logs-container {
-  max-height: 360px;
+/* ---- Log: tabella ---- */
+.logs-table-wrap {
+  max-height: 420px;
   overflow-y: auto;
-  font-family: monospace;
+}
+
+#logs-table {
   font-size: 0.82rem;
 }
 
-.log-line {
-  padding: 0.2rem 0.5rem;
-  border-left: 3px solid transparent;
+/* Header di tabella "appiccicoso" durante lo scroll. */
+#logs-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bs-body-bg);
+}
+
+#logs-table td.mono {
+  font-family: monospace;
+}
+
+.log-msg-cell {
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.log-error,
-.log-fatal {
-  border-left-color: var(--red);
-  background: rgba(248, 81, 73, 0.08);
-}
-.log-warn {
-  border-left-color: var(--yellow);
-  background: rgba(210, 153, 34, 0.08);
-}
-.log-info,
-.log-debug {
-  border-left-color: var(--bs-border-color);
+/* La cella del nodo e' cliccabile: imposta il filtro su quel nodo. */
+.log-node-cell {
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
 }
 
-.log-source {
-  color: var(--bs-secondary-color);
+/* Bordo sinistro colorato per riga in base alla severita'. */
+.log-row.log-error td:first-child,
+.log-row.log-fatal td:first-child {
+  box-shadow: inset 3px 0 0 var(--red);
+}
+.log-row.log-warn td:first-child {
+  box-shadow: inset 3px 0 0 var(--yellow);
+}
+
+/* ---- Query builder a blocchi ---- */
+.filter-builder {
+  font-size: 0.85rem;
+}
+
+.filter-group {
+  border: 1px solid var(--bs-border-color);
+  border-left: 3px solid var(--bs-primary, #0d6efd);
+  border-radius: 6px;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.filter-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.filter-children {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.filter-cond {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.filter-cond .filter-field {
+  width: auto;
+  min-width: 7rem;
+  font-weight: 600;
+}
+
+/* Colori dei campi (blocchetti). */
+.filter-field-node {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+.filter-field-level {
+  border-color: #a855f7;
+  color: #a855f7;
+}
+.filter-field-message {
+  border-color: #14b8a6;
+  color: #14b8a6;
+}
+
+.filter-cond .filter-op {
+  width: auto;
+  min-width: 10rem;
+}
+
+.filter-cond .filter-value {
+  width: auto;
+  min-width: 8rem;
+  flex: 1 1 8rem;
+}
+
+.filter-del {
+  line-height: 1;
+  padding: 0.1rem 0.45rem;
+}
+
+/* Connettore logico tra i figli (AND/OR). */
+.filter-connector {
+  align-self: flex-start;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  padding: 0.05rem 0.5rem;
+  border-radius: 10px;
+}
+.filter-connector-and {
+  color: var(--green);
+  background: rgba(46, 160, 67, 0.15);
+}
+.filter-connector-or {
+  color: var(--yellow);
+  background: rgba(210, 153, 34, 0.15);
+}
+
+.filter-empty {
+  font-style: italic;
 }

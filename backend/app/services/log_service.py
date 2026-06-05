@@ -17,6 +17,7 @@ from typing import Protocol
 
 from app.core.config import Settings
 from app.models.schemas import LogEntry, LogLevel
+from app.services.rosout_monitor import RosoutMonitor
 
 
 class LevelStrategy(Protocol):
@@ -81,6 +82,7 @@ class LogService:
         self,
         settings: Settings,
         strategies: tuple[LevelStrategy, ...] | None = None,
+        rosout: RosoutMonitor | None = None,
     ) -> None:
         """Inizializza il servizio.
 
@@ -88,9 +90,20 @@ class LogService:
             settings: Configurazione applicativa (fornisce la cartella dei log).
             strategies: Strategie di classificazione. Se ``None`` usa quelle di
                 default. Iniettarle permette di estendere/testare le regole.
+            rosout: Monitor del topic ``/rosout``. Se attivo, i log vengono letti
+                dal grafo ROS reale (live) invece che dai soli file locali.
         """
         self._settings = settings
         self._strategies: tuple[LevelStrategy, ...] = strategies or _DEFAULT_STRATEGIES
+        self._rosout = rosout
+
+    def _use_rosout(self) -> bool:
+        """Indica se usare la sorgente ``/rosout`` invece dei file locali.
+
+        Returns:
+            ``True`` se il monitor ``/rosout`` e' presente e attivo.
+        """
+        return self._rosout is not None and self._rosout.is_active()
 
     def classify(self, line: str) -> LogLevel:
         """Classifica una singola riga di log.
@@ -125,20 +138,36 @@ class LogService:
         self,
         levels: set[LogLevel] | None = None,
         max_entries: int = 500,
+        node: str | None = None,
     ) -> list[LogEntry]:
-        """Analizza i file di log e restituisce le righe classificate.
+        """Analizza i log e restituisce le righe classificate.
+
+        Quando il monitor ``/rosout`` e' attivo i log vengono letti dal grafo
+        ROS reale (live), cosi' la dashboard mostra i log effettivi del robot e
+        non i soli file della demo. Altrimenti si ricade sui file locali.
 
         Args:
             levels: Se valorizzato, filtra le righe mantenendo solo i livelli
                 indicati (es. solo warning/errori).
             max_entries: Numero massimo di voci restituite.
+            node: Se valorizzato, filtra i log per il nodo indicato (supportato
+                dalla sorgente ``/rosout``).
 
         Returns:
             Lista di `LogEntry`, dalla piu' recente alla piu' vecchia.
         """
+        if self._use_rosout():
+            assert self._rosout is not None
+            return self._rosout.get_logs(
+                node=node, levels=levels, max_entries=max_entries
+            )
+
+        node_token = node.strip().lstrip("/").lower() if node else None
         entries: list[LogEntry] = []
         for path in self._iter_log_files():
             source = self._relative_source(path)
+            if node_token is not None and node_token not in source.lower():
+                continue
             try:
                 content = path.read_text(encoding="utf-8", errors="replace")
             except OSError:
@@ -169,6 +198,9 @@ class LogService:
             Dizionario livello -> numero di righe. Utile per i badge di sintesi
             del frontend.
         """
+        if self._use_rosout():
+            assert self._rosout is not None
+            return self._rosout.summary()
         counter: Counter[str] = Counter()
         for entry in self.parse(max_entries=10_000):
             counter[entry.level.value] += 1

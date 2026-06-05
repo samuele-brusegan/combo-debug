@@ -45,6 +45,25 @@ async function apiGet(path, params) {
 }
 
 /**
+ * Esegue una POST JSON verso un endpoint dell'API.
+ * @param {string} path Percorso relativo a API_BASE (es. "/connection/test").
+ * @param {unknown} [body] Eventuale corpo JSON da inviare.
+ * @returns {Promise<any>} Il corpo JSON deserializzato.
+ */
+async function apiPost(path, body) {
+  const url = new URL(API_BASE + path, window.location.origin);
+  const response = await fetch(url, {
+    method: "POST",
+    headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} su ${path}`);
+  }
+  return response.json();
+}
+
+/**
  * Mappa uno stato (green/red/yellow) alla classe CSS del pallino.
  * @param {string} status Stato del nodo.
  * @returns {string} Nome della classe CSS.
@@ -109,13 +128,174 @@ async function refreshNodes() {
       severity = "yellow";
     }
     const li = document.createElement("li");
+    li.className = "node-item";
+    li.tabIndex = 0;
+    li.title = "Clicca per filtrare i log su questo nodo";
     li.innerHTML =
       `<span class="dot ${dotClass(node.status)}"></span>` +
       `<span class="node-name">${escapeHtml(node.name)}</span>` +
       `<span class="node-reason">${escapeHtml(node.reason)}</span>`;
+    li.addEventListener("click", () => filterLogsByNode(node.name));
+    li.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        filterLogsByNode(node.name);
+      }
+    });
     list.appendChild(li);
   }
   setPanelSeverity("panel-nodes", severity);
+}
+
+/* ---- Filtro dei log (tabella + query builder) -------------------------------
+ * L'AST `logFilterAst` e' l'unica sorgente di verita': testo e blocchi vengono
+ * entrambi rigenerati da esso, quindi non possono mai divergere. */
+
+/** AST radice del filtro corrente (gruppo vuoto = mostra tutto). */
+let logFilterAst = LogFilter.emptyRoot();
+
+/** Ultimo batch di log scaricato dal backend (per ri-filtrare senza refetch). */
+let logEntriesCache = [];
+
+/** Classe del badge Bootstrap per il livello di log. */
+function logLevelBadge(level) {
+  return (
+    {
+      fatal: "text-bg-danger",
+      error: "text-bg-danger",
+      warn: "text-bg-warning",
+      info: "text-bg-secondary",
+      debug: "text-bg-dark",
+    }[level] || "text-bg-secondary"
+  );
+}
+
+/** Indica se il filtro corrente e' "vuoto" (mostra tutto). */
+function isFilterEmpty() {
+  return logFilterAst.type === "group" && logFilterAst.children.length === 0;
+}
+
+/**
+ * Renderizza la tabella dei log applicando il filtro corrente alla cache.
+ * @returns {void}
+ */
+function renderLogTable() {
+  const tbody = document.querySelector("#logs-table tbody");
+  const filtered = logEntriesCache.filter((entry) => LogFilter.matches(logFilterAst, entry));
+
+  // Riepilogo del filtro attivo accanto alla tabella.
+  const activeEl = document.getElementById("log-active-filter");
+  const filterText = LogFilter.serialize(logFilterAst);
+  activeEl.textContent = filterText ? `filtro: ${filterText}` : "nessun filtro";
+  const badge = document.getElementById("log-filter-badge");
+  badge.classList.toggle("d-none", isFilterEmpty());
+
+  if (filtered.length === 0) {
+    tbody.innerHTML =
+      '<tr><td colspan="3" class="muted">Nessuna riga di log corrisponde al filtro.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = "";
+  for (const entry of filtered) {
+    const tr = document.createElement("tr");
+    tr.className = `log-row log-${entry.level}`;
+    tr.innerHTML =
+      `<td><span class="badge ${logLevelBadge(entry.level)}">${escapeHtml(entry.level)}</span></td>` +
+      `<td class="mono log-node-cell" title="Filtra su questo nodo">${escapeHtml(entry.source)}</td>` +
+      `<td class="mono log-msg-cell">${escapeHtml(entry.message)}</td>`;
+    // Click sul nodo nella tabella: stessa azione del click nel pannello nodi.
+    tr.querySelector(".log-node-cell").addEventListener("click", () =>
+      filterLogsByNode(entry.source),
+    );
+    tbody.appendChild(tr);
+  }
+}
+
+/**
+ * Imposta la parte "nodo" del filtro a ``node == <nodeName>`` e aggiorna tutto
+ * (tabella, testo e blocchi se la finestra e' aperta), mantenendo il resto del
+ * filtro. Espande il pannello log per dare feedback.
+ * @param {string} nodeName Nome del nodo (es. "/talker").
+ * @returns {void}
+ */
+function filterLogsByNode(nodeName) {
+  logFilterAst = LogFilter.setNodeInFilter(logFilterAst, nodeName);
+  syncFilterUiFromAst();
+  renderLogTable();
+  // Assicura che il pannello log sia visibile/espanso.
+  const body = document.getElementById("body-logs");
+  if (body) {
+    bootstrap.Collapse.getOrCreateInstance(body, { toggle: false }).show();
+  }
+}
+
+/**
+ * Rigenera testo e blocchi a partire dall'AST corrente (mantiene la sincronia).
+ * @returns {void}
+ */
+function syncFilterUiFromAst() {
+  const textInput = document.getElementById("log-filter-text");
+  if (textInput) {
+    textInput.value = LogFilter.serialize(logFilterAst);
+    textInput.classList.remove("is-invalid");
+    document.getElementById("log-filter-error").textContent = "";
+  }
+  renderFilterBuilder();
+}
+
+/** Renderizza il query builder a blocchi (sincronizzato con l'AST). */
+function renderFilterBuilder() {
+  const builder = document.getElementById("log-filter-builder");
+  if (!builder) {
+    return;
+  }
+  LogFilter.renderBuilder(builder, logFilterAst, () => {
+    // Modifica proveniente dai blocchi: aggiorna testo + tabella.
+    const textInput = document.getElementById("log-filter-text");
+    textInput.value = LogFilter.serialize(logFilterAst);
+    textInput.classList.remove("is-invalid");
+    document.getElementById("log-filter-error").textContent = "";
+    renderLogTable();
+  });
+}
+
+/**
+ * Gestisce la digitazione nell'input testuale: se valido aggiorna AST + blocchi
+ * + tabella; se invalido segnala l'errore senza toccare lo stato (cosi' testo e
+ * blocchi non divergono mai: i blocchi restano all'ultimo stato valido).
+ * @returns {void}
+ */
+function onFilterTextInput() {
+  const textInput = document.getElementById("log-filter-text");
+  const errorEl = document.getElementById("log-filter-error");
+  try {
+    const ast = LogFilter.parse(textInput.value);
+    logFilterAst = ast;
+    textInput.classList.remove("is-invalid");
+    errorEl.textContent = "";
+    renderFilterBuilder();
+    renderLogTable();
+  } catch (err) {
+    textInput.classList.add("is-invalid");
+    errorEl.textContent = err.message;
+  }
+}
+
+/** Azzera il filtro (mostra tutto) e sincronizza UI e tabella. */
+function clearLogFilter() {
+  logFilterAst = LogFilter.emptyRoot();
+  syncFilterUiFromAst();
+  renderLogTable();
+}
+
+/** Collega gli eventi della finestra di filtro. */
+function setupLogFilter() {
+  document.getElementById("log-filter-text").addEventListener("input", onFilterTextInput);
+  document.getElementById("log-filter-clear").addEventListener("click", clearLogFilter);
+  // Alla prima apertura del modal assicura che i blocchi siano renderizzati.
+  document
+    .getElementById("log-filter-modal")
+    .addEventListener("show.bs.modal", syncFilterUiFromAst);
 }
 
 /**
@@ -174,22 +354,23 @@ async function refreshHealth() {
 }
 
 /**
- * Aggiorna il pannello dei log con il filtro di livello selezionato (requisito 3).
+ * Scarica i log, li mette in cache e renderizza la tabella applicando il filtro
+ * corrente (requisito 3). Il filtraggio e' lato client.
  * @returns {Promise<void>}
  */
 async function refreshLogs() {
-  const container = document.getElementById("logs-container");
-  const select = document.getElementById("log-level");
   const params = new URLSearchParams();
-  for (const level of select.value.split(",").filter(Boolean)) {
-    params.append("level", level);
-  }
-  params.append("max_entries", "300");
+  // Scarichiamo un batch ampio senza filtri server-side: il filtraggio (anche
+  // con condizioni logiche complesse) avviene lato client sulla cache, cosi' il
+  // filtro si riapplica istantaneamente senza rifare richieste.
+  params.append("max_entries", "1000");
 
   const [entries, summary] = await Promise.all([
     apiGet("/logs", params),
     apiGet("/logs/summary"),
   ]);
+
+  logEntriesCache = entries;
 
   document.getElementById("log-summary").textContent =
     `errori: ${summary.error || 0} · warning: ${summary.warn || 0} · ` +
@@ -204,19 +385,7 @@ async function refreshLogs() {
     setPanelSeverity("panel-logs", "none");
   }
 
-  if (entries.length === 0) {
-    container.innerHTML = '<p class="muted">Nessuna riga di log per il filtro selezionato.</p>';
-    return;
-  }
-  container.innerHTML = "";
-  for (const entry of entries) {
-    const div = document.createElement("div");
-    div.className = `log-line log-${entry.level}`;
-    div.innerHTML =
-      `<span class="log-source">[${escapeHtml(entry.source)}:${entry.line_number}]</span> ` +
-      escapeHtml(entry.message);
-    container.appendChild(div);
-  }
+  renderLogTable();
 }
 
 /**
@@ -260,22 +429,35 @@ async function refreshConnectionBadge() {
  * Gli errori dei singoli pannelli non bloccano gli altri.
  * @returns {Promise<void>}
  */
+let isRefreshing = false;
+
 async function refreshAll() {
-  await refreshBackendStatus();
-  const tasks = [
-    ["connessione", refreshConnectionBadge],
-    ["nodi", refreshNodes],
-    ["env", refreshEnv],
-    ["salute", refreshHealth],
-    ["log", refreshLogs],
-  ];
-  await Promise.all(
-    tasks.map(([name, fn]) =>
-      fn().catch((err) => console.error(`Aggiornamento ${name} fallito:`, err)),
-    ),
-  );
-  document.getElementById("last-update").textContent =
-    "ultimo aggiornamento: " + new Date().toLocaleTimeString();
+  // Evita che cicli di refresh si accavallino (es. se un giro e' piu' lento
+  // dell'intervallo di polling): senza questo guardia le richieste si
+  // accumulerebbero e potrebbero saturare il backend.
+  if (isRefreshing) {
+    return;
+  }
+  isRefreshing = true;
+  try {
+    await refreshBackendStatus();
+    const tasks = [
+      ["connessione", refreshConnectionBadge],
+      ["nodi", refreshNodes],
+      ["env", refreshEnv],
+      ["salute", refreshHealth],
+      ["log", refreshLogs],
+    ];
+    await Promise.all(
+      tasks.map(([name, fn]) =>
+        fn().catch((err) => console.error(`Aggiornamento ${name} fallito:`, err)),
+      ),
+    );
+    document.getElementById("last-update").textContent =
+      "ultimo aggiornamento: " + new Date().toLocaleTimeString();
+  } finally {
+    isRefreshing = false;
+  }
 }
 
 /**
@@ -358,7 +540,7 @@ async function testConnection() {
   showConnectionResult("secondary", "Verifica in corso...");
   try {
     await applyConnectionConfig();
-    const probe = await apiGet("/connection/test");
+    const probe = await apiPost("/connection/test");
     if (!probe.available) {
       showConnectionResult("danger", `CLI ROS non disponibile: ${escapeHtml(probe.detail)}`);
       return;
@@ -490,15 +672,34 @@ function startClock() {
   setInterval(tick, 1000);
 }
 
-/** Avvia o riavvia il timer di polling in base alla checkbox. */
+let pollingActive = false;
+
+/**
+ * Pianifica il prossimo ciclo di refresh DOPO il completamento di quello
+ * corrente (polling concatenato): cosi' un ciclo lento non fa accumulare
+ * richieste sovrapposte sul backend.
+ * @returns {void}
+ */
+function scheduleNextPoll() {
+  if (!pollingActive) {
+    return;
+  }
+  pollTimer = setTimeout(async () => {
+    await refreshAll();
+    scheduleNextPoll();
+  }, POLL_INTERVAL_MS);
+}
+
+/** Avvia o riavvia il polling concatenato in base alla checkbox. */
 function setupPolling() {
   const checkbox = document.getElementById("autorefresh");
   if (pollTimer) {
-    clearInterval(pollTimer);
+    clearTimeout(pollTimer);
     pollTimer = null;
   }
-  if (checkbox.checked) {
-    pollTimer = setInterval(refreshAll, POLL_INTERVAL_MS);
+  pollingActive = checkbox.checked;
+  if (pollingActive) {
+    scheduleNextPoll();
   }
 }
 
@@ -542,10 +743,11 @@ function setupCollapse() {
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("poll-seconds").textContent = String(POLL_INTERVAL_MS / 1000);
   document.getElementById("autorefresh").addEventListener("change", setupPolling);
-  document.getElementById("log-level").addEventListener("change", refreshLogs);
   setupPanelToggles();
   setupCollapse();
   setupConnectionModal();
+  setupLogFilter();
+  renderFilterBuilder();
   startClock();
   refreshAll();
   setupPolling();

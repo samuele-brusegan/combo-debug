@@ -24,6 +24,7 @@ from app.models.schemas import (
     ConnectionProbe,
     ConnectionUpdate,
 )
+from app.services.rosout_monitor import LISTENER_NODE_NAME, RosoutMonitor
 
 # Variabili d'ambiente DDS gestite dalla riconfigurazione a caldo.
 _ENV_DOMAIN = "ROS_DOMAIN_ID"
@@ -34,15 +35,23 @@ _ENV_DISCOVERY = "ROS_DISCOVERY_SERVER"
 class ConnectionService:
     """Legge e applica a runtime la configurazione di connessione ROS 2."""
 
-    def __init__(self, runner: RosCommandRunner, settings: Settings) -> None:
+    def __init__(
+        self,
+        runner: RosCommandRunner,
+        settings: Settings,
+        rosout: RosoutMonitor | None = None,
+    ) -> None:
         """Inizializza il servizio.
 
         Args:
             runner: Adapter usato per verificare il grafo (``ros2 node list``).
             settings: Configurazione condivisa da aggiornare a caldo.
+            rosout: Monitor ``/rosout`` da riavviare quando cambia il dominio
+                DDS, cosi' che la sottoscrizione segua il nuovo grafo ROS.
         """
         self._runner = runner
         self._settings = settings
+        self._rosout = rosout
 
     def get_config(self) -> ConnectionConfig:
         """Restituisce la configurazione di connessione attualmente attiva.
@@ -79,11 +88,20 @@ class ConnectionService:
         Returns:
             La configurazione risultante dopo l'applicazione.
         """
+        dds_changed = False
         if update.ros_domain_id is not None:
-            os.environ[_ENV_DOMAIN] = update.ros_domain_id.strip()
+            new_domain = update.ros_domain_id.strip()
+            dds_changed = dds_changed or os.environ.get(_ENV_DOMAIN) != new_domain
+            os.environ[_ENV_DOMAIN] = new_domain
         if update.rmw_implementation is not None:
+            dds_changed = dds_changed or os.environ.get(
+                _ENV_RMW, ""
+            ) != update.rmw_implementation.strip()
             self._set_or_clear(_ENV_RMW, update.rmw_implementation)
         if update.ros_discovery_server is not None:
+            dds_changed = dds_changed or os.environ.get(
+                _ENV_DISCOVERY, ""
+            ) != update.ros_discovery_server.strip()
             self._set_or_clear(_ENV_DISCOVERY, update.ros_discovery_server)
         if update.expected_nodes is not None:
             self._settings.expected_nodes = update.expected_nodes.strip()
@@ -91,6 +109,11 @@ class ConnectionService:
             self._settings.expected_topics = update.expected_topics.strip()
         if update.ros_log_dir is not None and update.ros_log_dir.strip():
             self._settings.ros_log_dir = Path(update.ros_log_dir.strip())
+
+        # Se sono cambiati i parametri DDS, la sottoscrizione /rosout deve
+        # ripartire sul nuovo grafo (il dominio si applica alla init di rclpy).
+        if dds_changed and self._rosout is not None:
+            self._rosout.restart()
 
         return self.get_config()
 
@@ -104,7 +127,7 @@ class ConnectionService:
         if not result.ok:
             detail = result.stderr.strip() or "Comando 'ros2 node list' fallito."
             return ConnectionProbe(available=False, node_count=0, detail=detail)
-        nodes = sorted({line.strip() for line in result.stdout.splitlines() if line.strip()})
+        nodes = self._parse_lines(result.stdout)
         detail = (
             f"Rilevati {len(nodes)} nodi nel grafo."
             if nodes
@@ -150,9 +173,17 @@ class ConnectionService:
             output: Standard output del comando.
 
         Returns:
-            Lista ordinata e deduplicata dei nomi non vuoti.
+            Lista ordinata e deduplicata dei nomi non vuoti, escluso il nodo di
+            servizio interno che ascolta ``/rosout``.
         """
-        return sorted({line.strip() for line in output.splitlines() if line.strip()})
+        excluded = {f"/{LISTENER_NODE_NAME}", LISTENER_NODE_NAME}
+        return sorted(
+            {
+                line.strip()
+                for line in output.splitlines()
+                if line.strip() and line.strip() not in excluded
+            }
+        )
 
     @staticmethod
     def _set_or_clear(key: str, value: str) -> None:

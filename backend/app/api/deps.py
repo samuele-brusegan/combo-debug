@@ -14,12 +14,14 @@ from app.adapters.ros_cli import RosCommandRunner, SubprocessRosCommandRunner
 from app.core.config import Settings, get_settings
 from app.services.connection_service import ConnectionService
 from app.services.env_service import EnvService
+from app.services.health_monitor import HealthMonitor
 from app.services.health_service import (
     HealthService,
     TopicFrequencyCheck,
 )
 from app.services.log_service import LogService
 from app.services.node_service import NodeService
+from app.services.rosout_monitor import RosoutMonitor
 
 
 @lru_cache
@@ -32,6 +34,29 @@ def get_runner() -> RosCommandRunner:
     """
     settings = get_settings()
     return SubprocessRosCommandRunner(default_timeout=settings.ros_command_timeout)
+
+
+@lru_cache
+def get_rosout_monitor() -> RosoutMonitor:
+    """Restituisce il monitor singleton del topic ``/rosout``.
+
+    Returns:
+        Un `RosoutMonitor` condiviso. Va avviato dal lifespan dell'app.
+    """
+    return RosoutMonitor()
+
+
+@lru_cache
+def get_health_monitor() -> HealthMonitor:
+    """Restituisce il monitor singleton delle euristiche di salute.
+
+    Il factory rilegge le impostazioni correnti ad ogni ciclo, cosi' da seguire
+    le riconfigurazioni a caldo (nodi/topic attesi).
+
+    Returns:
+        Un `HealthMonitor` condiviso. Va avviato dal lifespan dell'app.
+    """
+    return HealthMonitor(service_factory=get_health_service)
 
 
 def get_node_service() -> NodeService:
@@ -56,9 +81,10 @@ def get_log_service() -> LogService:
     """Costruisce il servizio di parsing dei log.
 
     Returns:
-        Un `LogService` configurato con le impostazioni correnti.
+        Un `LogService` configurato con le impostazioni correnti e collegato al
+        monitor ``/rosout`` (usato quando attivo, altrimenti fallback su file).
     """
-    return LogService(settings=get_settings())
+    return LogService(settings=get_settings(), rosout=get_rosout_monitor())
 
 
 def get_health_service() -> HealthService:
@@ -80,6 +106,12 @@ def get_connection_service() -> ConnectionService:
     degli altri service: le riconfigurazioni a caldo si riflettono ovunque.
 
     Returns:
-        Un `ConnectionService` pronto all'uso.
+        Un `ConnectionService` pronto all'uso. Riceve il monitor ``/rosout`` per
+        riavviarlo quando cambia il dominio DDS (cosi' la sottoscrizione segue
+        il nuovo grafo ROS).
     """
-    return ConnectionService(runner=get_runner(), settings=get_settings())
+    return ConnectionService(
+        runner=get_runner(),
+        settings=get_settings(),
+        rosout=get_rosout_monitor(),
+    )

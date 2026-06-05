@@ -7,12 +7,41 @@ con configurazioni alternative.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
+from app.api.deps import get_health_monitor, get_rosout_monitor
 from app.api.routes import api_router
 from app.core.config import Settings, get_settings
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Gestisce avvio/arresto dei monitor in background.
+
+    All'avvio vengono attivati il monitor ``/rosout`` (log live del grafo ROS)
+    e il monitor di salute (misure di frequenza in background, fuori dal path
+    HTTP per non saturare il threadpool). Allo spegnimento vengono fermati.
+
+    Args:
+        app: Istanza FastAPI (non usata direttamente).
+
+    Yields:
+        Il controllo all'applicazione mentre i monitor sono attivi.
+    """
+    rosout = get_rosout_monitor()
+    health = get_health_monitor()
+    rosout.start()
+    health.start()
+    try:
+        yield
+    finally:
+        health.stop()
+        rosout.stop()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -33,6 +62,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "Backend di debugging e monitoraggio per un ecosistema ROS 2. "
             "Espone nodi, variabili d'ambiente, log e euristiche di salute."
         ),
+        lifespan=_lifespan,
     )
 
     app.add_middleware(

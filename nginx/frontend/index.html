@@ -204,6 +204,46 @@
       </div>
     </div>
 
+    <!-- Finestra di filtraggio dei log: testo + blocchi (sincronizzati). -->
+    <div class="modal fade" id="log-filter-modal" tabindex="-1" aria-labelledby="log-filter-title" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 class="modal-title h5" id="log-filter-title">Filtro dei log</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body">
+            <!-- 1) Input testuale a tutta larghezza (query del filtro). -->
+            <label class="form-label" for="log-filter-text">Espressione di filtro</label>
+            <input
+              type="text"
+              class="form-control font-monospace"
+              id="log-filter-text"
+              placeholder='es. node == /talker AND (level >= warn OR message ~ "timeout")'
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <div id="log-filter-error" class="invalid-feedback d-block"></div>
+            <p class="muted small mt-1 mb-3">
+              Campi: <code>node</code>, <code>level</code>, <code>message</code> ·
+              operatori: <code>==</code> <code>!=</code> <code>~</code> (contiene)
+              <code>!~</code> <code>&gt;</code> <code>&gt;=</code> <code>&lt;</code> <code>&lt;=</code> ·
+              logici: <code>AND</code> <code>OR</code> e parentesi ·
+              livelli: debug &lt; info &lt; warn &lt; error &lt; fatal.
+            </p>
+
+            <!-- 2) Blocchi colorati per comporre il filtro graficamente. -->
+            <label class="form-label">Composizione a blocchi</label>
+            <div id="log-filter-builder" class="filter-builder"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-danger me-auto" id="log-filter-clear">Pulisci filtro</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <main class="container-fluid p-4">
       <div class="row g-3">
         <!-- Requisito 1: stato dei nodi con color coding -->
@@ -310,7 +350,22 @@
               <h2 class="h6 mb-0">Log dei nodi</h2>
               <span class="status-dot ms-2" data-status-dot></span>
               <button
-                class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
+                class="btn btn-sm btn-outline-primary ms-auto d-flex align-items-center gap-1"
+                type="button"
+                id="log-filter-open"
+                data-bs-toggle="modal"
+                data-bs-target="#log-filter-modal"
+                title="Apri il filtro dei log"
+              >
+                <!-- Icona imbuto (filtro) -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5z" />
+                </svg>
+                <span>Filtro</span>
+                <span id="log-filter-badge" class="badge text-bg-primary d-none">attivo</span>
+              </button>
+              <button
+                class="btn btn-sm btn-link ms-2 p-0 text-decoration-none collapse-toggle"
                 type="button"
                 data-bs-toggle="collapse"
                 data-bs-target="#body-logs"
@@ -321,20 +376,23 @@
             </div>
             <div class="collapse show" id="body-logs">
               <div class="card-body">
-                <div class="logs-controls d-flex align-items-center flex-wrap gap-3 mb-3">
-                  <label class="d-flex align-items-center gap-2 mb-0">
-                    Filtro livello:
-                    <select id="log-level" class="form-select form-select-sm w-auto">
-                      <option value="">tutti</option>
-                      <option value="error">solo errori</option>
-                      <option value="warn">solo warning</option>
-                      <option value="error,warn" selected>errori + warning</option>
-                    </select>
-                  </label>
-                  <span id="log-summary" class="muted"></span>
+                <div class="logs-controls d-flex align-items-center flex-wrap gap-3 mb-2">
+                  <span id="log-active-filter" class="muted font-monospace"></span>
+                  <span id="log-summary" class="muted ms-auto"></span>
                 </div>
-                <div id="logs-container" class="logs-container">
-                  <p class="muted">Caricamento...</p>
+                <div id="logs-container" class="logs-table-wrap">
+                  <table class="table table-sm table-hover data-table mb-0" id="logs-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 6rem">Livello</th>
+                        <th style="width: 12rem">Nodo</th>
+                        <th>Messaggio</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td colspan="3" class="muted">Caricamento...</td></tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -353,6 +411,7 @@
       integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
       crossorigin="anonymous"
     ></script>
+    <script src="filter.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

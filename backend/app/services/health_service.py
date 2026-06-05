@@ -53,6 +53,24 @@ class TopicFrequencyCheck:
         self._runner = runner
         self._settings = settings
 
+    def _existing_topics(self) -> set[str] | None:
+        """Elenca i topic attualmente presenti nel grafo ROS.
+
+        Serve a evitare di misurare con ``ros2 topic hz`` topic che non
+        esistono (es. i topic demo quando si e' collegati a un ROS reale): per
+        un topic assente la misura attenderebbe inutilmente l'intero timeout,
+        moltiplicando i tempi e contribuendo alla saturazione del backend.
+
+        Returns:
+            L'insieme dei topic presenti nel grafo, oppure ``None`` se il
+            comando ``ros2 topic list`` non e' disponibile/fallisce (in tal
+            caso non si fa alcuna assunzione e si misura comunque).
+        """
+        result = self._runner.run(["topic", "list"])
+        if not result.ok:
+            return None
+        return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+
     def _measure_hz(self, topic: str) -> float | None:
         """Misura la frequenza di pubblicazione di un topic.
 
@@ -106,7 +124,22 @@ class TopicFrequencyCheck:
             Un `TopicHealth` per ciascun topic atteso.
         """
         results: list[TopicHealth] = []
+        existing = self._existing_topics()
         for topic, expected_hz in self._settings.parse_expected_topics().items():
+            if existing is not None and topic not in existing:
+                results.append(
+                    TopicHealth(
+                        topic=topic,
+                        expected_hz=expected_hz,
+                        measured_hz=None,
+                        healthy=False,
+                        detail=(
+                            "Topic non presente nel grafo ROS corrente "
+                            "(nodo non in esecuzione o topic non pubblicato)."
+                        ),
+                    )
+                )
+                continue
             measured = self._measure_hz(topic)
             if measured is None:
                 results.append(
