@@ -11,14 +11,10 @@ from __future__ import annotations
 from functools import lru_cache
 
 from app.adapters.ros_cli import RosCommandRunner, SubprocessRosCommandRunner
-from app.core.config import Settings, get_settings
+from app.core.config import get_settings
 from app.services.connection_service import ConnectionService
 from app.services.env_service import EnvService
-from app.services.health_monitor import HealthMonitor
-from app.services.health_service import (
-    HealthService,
-    TopicFrequencyCheck,
-)
+from app.services.graph_service import GraphService
 from app.services.log_service import LogService
 from app.services.node_service import NodeService
 from app.services.rosout_monitor import RosoutMonitor
@@ -46,19 +42,6 @@ def get_rosout_monitor() -> RosoutMonitor:
     return RosoutMonitor()
 
 
-@lru_cache
-def get_health_monitor() -> HealthMonitor:
-    """Restituisce il monitor singleton delle euristiche di salute.
-
-    Il factory rilegge le impostazioni correnti ad ogni ciclo, cosi' da seguire
-    le riconfigurazioni a caldo (nodi/topic attesi).
-
-    Returns:
-        Un `HealthMonitor` condiviso. Va avviato dal lifespan dell'app.
-    """
-    return HealthMonitor(service_factory=get_health_service)
-
-
 def get_node_service() -> NodeService:
     """Costruisce il servizio dei nodi.
 
@@ -66,6 +49,15 @@ def get_node_service() -> NodeService:
         Un `NodeService` pronto all'uso.
     """
     return NodeService(runner=get_runner(), settings=get_settings())
+
+
+def get_graph_service() -> GraphService:
+    """Costruisce il servizio di ispezione del grafo (topic/servizi/azioni).
+
+    Returns:
+        Un `GraphService` configurato con runner e impostazioni correnti.
+    """
+    return GraphService(runner=get_runner(), settings=get_settings())
 
 
 def get_env_service() -> EnvService:
@@ -85,17 +77,6 @@ def get_log_service() -> LogService:
         monitor ``/rosout`` (usato quando attivo, altrimenti fallback su file).
     """
     return LogService(settings=get_settings(), rosout=get_rosout_monitor())
-
-
-def get_health_service() -> HealthService:
-    """Costruisce il servizio delle euristiche di salute.
-
-    Returns:
-        Un `HealthService` con le strategie di verifica registrate.
-    """
-    settings: Settings = get_settings()
-    checks = [TopicFrequencyCheck(runner=get_runner(), settings=settings)]
-    return HealthService(checks=checks)
 
 
 @lru_cache

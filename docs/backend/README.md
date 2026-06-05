@@ -19,7 +19,8 @@ backend/
 │   │   ├── node_service.py
 │   │   ├── env_service.py
 │   │   ├── log_service.py
-│   │   ├── health_service.py
+│   │   ├── rosout_monitor.py      # sottoscrizione live a /rosout (log + timestamp)
+│   │   ├── graph_service.py       # topic/servizi/azioni + rilevamento zombie
 │   │   └── connection_service.py  # riconfigurazione a caldo del grafo ROS
 │   └── api/
 │       ├── deps.py        # Dependency injection (composition root)
@@ -44,9 +45,7 @@ sovrascrive con variabili d'ambiente prefissate `COMBO_DEBUG_`:
 | ------------------------------- | ----------------------------------------- | -------------------------------------------- |
 | `COMBO_DEBUG_ROS_LOG_DIR`       | `~/.ros/log`                              | Cartella dei log analizzata dal parser.      |
 | `COMBO_DEBUG_ROS_COMMAND_TIMEOUT` | `8.0`                                   | Timeout (s) delle SysCall a `ros2`.          |
-| `COMBO_DEBUG_TOPIC_HZ_WINDOW`   | `6.0`                                     | Finestra (s) di misura di `ros2 topic hz` (≥ ~4s: sotto, la misura e' inaffidabile). |
-| `COMBO_DEBUG_TOPIC_HZ_ATTEMPTS` | `2`                                       | Tentativi di misura per topic (ritenta su miss transitori). |
-| `COMBO_DEBUG_EXPECTED_TOPICS`   | `/chatter=0.5,/heartbeat=1.0`             | Topic attesi `nome=freq_min_hz`.             |
+| `COMBO_DEBUG_EXPECTED_TOPICS`   | `/chatter=0.5,/heartbeat=1.0`             | Topic attesi (memorizzati per la UI di connessione). |
 | `COMBO_DEBUG_EXPECTED_NODES`    | `/talker,/listener,/stuck_spinner,/crasher` | Nodi attesi (assenti ⇒ rosso).            |
 
 ## Avvio locale (senza Docker)

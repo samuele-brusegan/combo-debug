@@ -15,9 +15,11 @@ misti (servizi web containerizzati + nodi robotici). L'implementazione attuale
 si concentra sul monitoraggio di un **ecosistema ROS 2** e fornisce:
 
 - visione in tempo reale dello stato dei nodi (color-coding verde/rosso);
+- elenchi di topic, servizi e azioni con rilevamento delle entita' **zombie**
+  (presenti nel grafo ma senza alcun nodo attivo associato);
 - ispezione delle variabili d'ambiente ROS;
-- un log parser centralizzato che evidenzia errori e warning;
-- euristiche avanzate (rilevamento spin bloccato).
+- un log parser centralizzato (con timestamp ed export CSV) che evidenzia
+  errori e warning.
 
 L'aggiornamento dei dati nel frontend avviene tramite **polling REST**.
 

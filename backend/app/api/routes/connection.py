@@ -14,6 +14,7 @@ from app.models.schemas import (
     ConnectionDiscovery,
     ConnectionProbe,
     ConnectionUpdate,
+    RmwOptions,
 )
 from app.services.connection_service import ConnectionService
 
@@ -65,6 +66,25 @@ def test_connection(
         L'esito con la disponibilita' della CLI e i nodi rilevati.
     """
     return service.test()
+
+
+@router.get(
+    "/rmw",
+    response_model=RmwOptions,
+    summary="Implementazioni RMW disponibili",
+)
+def list_rmw(
+    service: ConnectionService = Depends(get_connection_service),
+) -> RmwOptions:
+    """Elenca le implementazioni RMW installate e quella attiva.
+
+    Args:
+        service: Servizio di connessione iniettato.
+
+    Returns:
+        Le RMW selezionabili dalla UI e quella corrente.
+    """
+    return service.available_rmw()
 
 
 @router.get(

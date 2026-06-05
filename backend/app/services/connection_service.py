@@ -23,6 +23,7 @@ from app.models.schemas import (
     ConnectionDiscovery,
     ConnectionProbe,
     ConnectionUpdate,
+    RmwOptions,
 )
 from app.services.rosout_monitor import LISTENER_NODE_NAME, RosoutMonitor
 
@@ -30,6 +31,21 @@ from app.services.rosout_monitor import LISTENER_NODE_NAME, RosoutMonitor
 _ENV_DOMAIN = "ROS_DOMAIN_ID"
 _ENV_RMW = "RMW_IMPLEMENTATION"
 _ENV_DISCOVERY = "ROS_DISCOVERY_SERVER"
+
+# Catalogo dei pacchetti RMW noti di ROS 2 (middleware DDS supportati). La UI
+# offre solo quelli effettivamente installati nel container (intersezione con
+# ``ros2 pkg list``), cosi' si evitano scelte che farebbero fallire la CLI.
+_KNOWN_RMW: tuple[str, ...] = (
+    "rmw_fastrtps_cpp",
+    "rmw_fastrtps_dynamic_cpp",
+    "rmw_cyclonedds_cpp",
+    "rmw_connextdds",
+    "rmw_gurumdds_cpp",
+)
+
+# RMW assunte come installate quando ``ros2 pkg list`` non e' disponibile (sono
+# quelle incluse nell'immagine, vedi backend/Dockerfile).
+_RMW_FALLBACK: tuple[str, ...] = ("rmw_fastrtps_cpp", "rmw_cyclonedds_cpp")
 
 
 class ConnectionService:
@@ -52,6 +68,10 @@ class ConnectionService:
         self._runner = runner
         self._settings = settings
         self._rosout = rosout
+        # Cache delle RMW installate: l'insieme dei pacchetti non cambia a
+        # runtime, quindi lo rileviamo una sola volta (il rilevamento usa una
+        # SysCall ``ros2 pkg list``, da non ripetere ad ogni richiesta).
+        self._rmw_cache: list[str] | None = None
 
     def get_config(self) -> ConnectionConfig:
         """Restituisce la configurazione di connessione attualmente attiva.
@@ -139,6 +159,46 @@ class ConnectionService:
             nodes=nodes,
             detail=detail,
         )
+
+    def available_rmw(self) -> RmwOptions:
+        """Elenca le implementazioni RMW installate e quella attiva.
+
+        Rileva (una sola volta, poi usa la cache) quali pacchetti RMW noti sono
+        effettivamente installati nel container, cosi' la UI puo' offrirli in un
+        menu a tendina. L'eventuale RMW corrente viene sempre inclusa, anche se
+        non nel catalogo (es. una RMW personalizzata gia' impostata).
+
+        Returns:
+            Le RMW disponibili, quella corrente e una nota d'uso.
+        """
+        if self._rmw_cache is None:
+            self._rmw_cache = self._detect_rmw()
+        available = list(self._rmw_cache)
+        current = os.environ.get(_ENV_RMW, "")
+        if current and current not in available:
+            available.append(current)
+        detail = (
+            f"{len(available)} implementazioni RMW installate. "
+            "Per aggiungerne altre installa il pacchetto (es. "
+            "ros-humble-rmw-connextdds) nel Dockerfile e ricostruisci l'immagine."
+        )
+        return RmwOptions(available=sorted(available), current=current, detail=detail)
+
+    def _detect_rmw(self) -> list[str]:
+        """Rileva i pacchetti RMW noti installati tramite ``ros2 pkg list``.
+
+        Returns:
+            I pacchetti RMW del catalogo presenti nel sistema; se il comando non
+            e' disponibile/fallisce, l'elenco di fallback incluso nell'immagine.
+        """
+        result = self._runner.run(["pkg", "list"])
+        if not result.ok:
+            return list(_RMW_FALLBACK)
+        installed = {
+            line.strip() for line in result.stdout.splitlines() if line.strip()
+        }
+        found = [rmw for rmw in _KNOWN_RMW if rmw in installed]
+        return found or list(_RMW_FALLBACK)
 
     def discover(self) -> ConnectionDiscovery:
         """Rileva i nodi e i topic presenti nel grafo con la config corrente.

@@ -81,6 +81,40 @@ environment:
 > compose**. Se imposti una RMW non installata, la CLI `ros2` fallisce con un
 > errore tipo `failed to load shared library 'librmw_*.so'`.
 
+### Aggiungere una nuova `RMW_IMPLEMENTATION`
+
+Il menu a tendina **RMW_IMPLEMENTATION** del modal "Collega a ROS reale" elenca
+solo le RMW **realmente installate** nel container: il backend le rileva con
+`ros2 pkg list` (endpoint `GET /api/connection/rmw`, vedi
+[`../backend/api.md`](../backend/api.md)). Per renderne disponibile una nuova:
+
+1. **Installa il pacchetto** nel [`../../backend/Dockerfile`](../../backend/Dockerfile),
+   nello stesso blocco `apt-get install` delle altre RMW. Esempi:
+
+   ```dockerfile
+   RUN apt-get update \
+       && apt-get install -y --no-install-recommends \
+           python3-pip \
+           ros-humble-std-msgs \
+           ros-humble-rmw-fastrtps-cpp \
+           ros-humble-rmw-cyclonedds-cpp \
+           ros-humble-rmw-connextdds \
+       && rm -rf /var/lib/apt/lists/*
+   ```
+
+   > RTI Connext DDS (`rmw_connextdds`) richiede l'accettazione della licenza e
+   > non e' sempre disponibile via apt: segui la documentazione ufficiale RTI.
+
+2. Se la RMW non e' nel catalogo di rilevamento, aggiungine il nome al tuple
+   `_KNOWN_RMW` in
+   [`../../backend/app/services/connection_service.py`](../../backend/app/services/connection_service.py).
+3. **Ricostruisci** l'immagine: `docker compose up --build`.
+4. La nuova RMW comparira' automaticamente nel menu a tendina.
+
+In alternativa, dalla UI puoi scegliere **"Altro… (personalizzata)"** e digitare
+il nome della RMW: deve comunque essere **gia' installata** nel container,
+altrimenti la CLI `ros2` fallira' con `failed to load shared library 'librmw_*.so'`.
+
 ## Passo 3 — Rete: far scoprire i nodi via DDS
 
 La discovery DDS usa multicast UDP, che la rete bridge di Docker non inoltra.

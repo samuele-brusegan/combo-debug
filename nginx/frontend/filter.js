@@ -36,7 +36,7 @@
   const FIELDS = {
     node: {
       label: "nodo",
-      ops: ["==", "!=", "~", "!~"],
+      ops: ["==", "!=", "~", "!~", "=~", "!=~"],
       valueType: "text",
     },
     level: {
@@ -46,10 +46,13 @@
     },
     message: {
       label: "messaggio",
-      ops: ["~", "!~", "==", "!="],
+      ops: ["~", "!~", "=~", "!=~", "==", "!="],
       valueType: "text",
     },
   };
+
+  /** Operatori di matching tramite espressione regolare (case-insensitive). */
+  const REGEX_OPS = new Set(["=~", "!=~"]);
 
   /** Etichette leggibili degli operatori per i blocchi. */
   const OP_LABELS = {
@@ -57,6 +60,8 @@
     "!=": "diverso da",
     "~": "contiene",
     "!~": "non contiene",
+    "=~": "regex",
+    "!=~": "non regex",
     ">": "maggiore di",
     ">=": "maggiore/uguale",
     "<": "minore di",
@@ -64,8 +69,8 @@
   };
 
   // Operatori in ordine di lunghezza decrescente (il tokenizer deve provare
-  // prima i multi-carattere, es. "!=" prima di "!").
-  const OP_TOKENS = ["==", "!=", "!~", ">=", "<=", "~", ">", "<"];
+  // prima i multi-carattere, es. "!=~" prima di "!=", "!=" prima di "!~").
+  const OP_TOKENS = ["!=~", "=~", "==", "!=", "!~", ">=", "<=", "~", ">", "<"];
 
   /** Errore di parsing del filtro (messaggio leggibile per la UI). */
   class FilterError extends Error {}
@@ -101,9 +106,12 @@
         const quote = c;
         let j = i + 1;
         let s = "";
+        // Dentro le virgolette si escapa SOLO la virgoletta (``\"``): ogni altro
+        // backslash e' preservato letteralmente, cosi' i pattern regex come
+        // ``\d`` restano intatti senza richiedere doppio escaping.
         while (j < n && input[j] !== quote) {
-          if (input[j] === "\\" && j + 1 < n) {
-            s += input[j + 1];
+          if (input[j] === "\\" && j + 1 < n && input[j + 1] === quote) {
+            s += quote;
             j += 2;
           } else {
             s += input[j];
@@ -272,6 +280,15 @@
           );
         }
       }
+      if (REGEX_OPS.has(o.v)) {
+        // Validiamo subito la regex: cosi' un pattern non valido rende il filtro
+        // non valido (segnalato dalla UI) invece di fallire silenziosamente.
+        try {
+          new RegExp(value);
+        } catch (err) {
+          throw new FilterError(`Espressione regolare non valida: ${err.message}`);
+        }
+      }
       return cond(field, o.v, value);
     }
 
@@ -293,7 +310,9 @@
     if (v !== "" && /^[A-Za-z0-9_/.\-:]+$/.test(v) && !["and", "or"].includes(v.toLowerCase())) {
       return v;
     }
-    return '"' + v.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+    // Escapiamo solo le virgolette: i backslash (regex) restano letterali, cosi'
+    // il testo mostrato coincide con quanto digitato (nessun doppio escaping).
+    return '"' + v.replace(/"/g, '\\"') + '"';
   }
 
   /**
@@ -325,6 +344,25 @@
     return String(s).trim().replace(/^\//, "").toLowerCase();
   }
 
+  // Cache delle regex compilate (case-insensitive). Valore ``null`` se il
+  // pattern non e' compilabile (non dovrebbe accadere: validato nel parser).
+  const _regexCache = new Map();
+
+  /** Compila (con cache) una regex case-insensitive, o ``null`` se invalida. */
+  function compileRegex(pattern) {
+    if (_regexCache.has(pattern)) {
+      return _regexCache.get(pattern);
+    }
+    let re = null;
+    try {
+      re = new RegExp(pattern, "i");
+    } catch (_err) {
+      re = null;
+    }
+    _regexCache.set(pattern, re);
+    return re;
+  }
+
   /** Valuta una singola condizione su una riga di log. */
   function matchCond(c, entry) {
     if (c.field === "level") {
@@ -350,8 +388,15 @@
           return false;
       }
     }
-    const raw = c.field === "node" ? entry.source : entry.message;
-    const field = c.field === "node" ? normNode(raw) : String(raw).toLowerCase();
+    const raw = String(c.field === "node" ? entry.source : entry.message);
+    // I match regex usano il testo grezzo (case-insensitive via flag "i"),
+    // cosi' si possono usare ancore/classi senza normalizzazioni a sorpresa.
+    if (c.op === "=~" || c.op === "!=~") {
+      const re = compileRegex(c.value);
+      const ok = re ? re.test(raw) : false;
+      return c.op === "=~" ? ok : !ok;
+    }
+    const field = c.field === "node" ? normNode(raw) : raw.toLowerCase();
     const target = c.field === "node" ? normNode(c.value) : String(c.value).toLowerCase();
     switch (c.op) {
       case "==":

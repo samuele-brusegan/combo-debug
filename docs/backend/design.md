@@ -25,14 +25,6 @@ classDiagram
         +ok() bool
     }
 
-    class HealthCheck {
-        <<interface>>
-        +run() list~TopicHealth~
-    }
-    class TopicFrequencyCheck {
-        +run() list~TopicHealth~
-    }
-
     class LevelStrategy {
         <<interface>>
         +matches(line) bool
@@ -44,8 +36,8 @@ classDiagram
     class NodeService {
         +get_nodes() list~RosNode~
     }
-    class HealthService {
-        +build_report() HealthReport
+    class GraphService {
+        +get_snapshot() GraphSnapshot
     }
     class LogService {
         +parse() list~LogEntry~
@@ -54,18 +46,16 @@ classDiagram
 
     RosCommandRunner <|.. SubprocessRosCommandRunner
     SubprocessRosCommandRunner ..> CommandResult : crea
-    HealthCheck <|.. TopicFrequencyCheck
     LevelStrategy <|.. RegexLevelStrategy
 
     NodeService "1" o--> "1" RosCommandRunner : usa
-    TopicFrequencyCheck "1" o--> "1" RosCommandRunner : usa
-    HealthService "1" o--> "*" HealthCheck : aggrega
+    GraphService "1" o--> "1" RosCommandRunner : usa
     LogService "1" o--> "*" LevelStrategy : usa
 ```
 
-I service dipendono dalle **interfacce** (`RosCommandRunner`, `HealthCheck`,
-`LevelStrategy`), mai dalle implementazioni concrete: e' questo che rende il
-sistema testabile (fake runner) ed estendibile (nuove strategie).
+I service dipendono dalle **interfacce** (`RosCommandRunner`, `LevelStrategy`),
+mai dalle implementazioni concrete: e' questo che rende il sistema testabile
+(fake runner) ed estendibile (nuove strategie).
 
 ## Design pattern adottati
 
@@ -76,13 +66,16 @@ l'interfaccia `RosCommandRunner`. Il resto del codice non sa "come" si parla con
 ROS: dipende solo dall'astrazione. Per passare in futuro a un client `rclpy`
 nativo basta scrivere un nuovo adapter, senza toccare i service.
 
-### Strategy — log e salute
+### Strategy — log
 - **Log** (`log_service.py`): la classificazione di ogni riga e' delegata a una
   lista di `LevelStrategy`. Aggiungere o riordinare le regole non richiede di
   modificare il motore di parsing.
-- **Salute** (`health_service.py`): ogni euristica implementa `HealthCheck`.
-  `HealthService` si limita ad aggregarne i risultati. Nuove euristiche =
-  nuove strategie iniettate.
+
+### Aggregazione del grafo — `graph_service.py`
+`GraphService` ricostruisce il grafo (topic/servizi/azioni) aggregando
+`ros2 node info` sui nodi attivi e incrociandolo con gli elenchi `ros2 ... list`.
+Da questo incrocio deriva lo stato di ogni entita', incluso il rilevamento
+**zombie** (presente nel grafo ma senza alcun nodo attivo associato).
 
 ### Application Factory — `main.py`
 `create_app()` costruisce l'istanza FastAPI. Facilita i test con configurazioni
@@ -99,14 +92,14 @@ istanza in tutta l'applicazione.
 
 ## Principi SOLID
 
-- **S**ingle Responsibility — un file per area (nodi, env, log, salute);
+- **S**ingle Responsibility — un file per area (nodi, env, log, grafo);
   la configurazione e' isolata in `Settings`.
-- **O**pen/Closed — Strategy per log/salute permette di estendere senza
+- **O**pen/Closed — Strategy per i log permette di estendere senza
   modificare il codice esistente.
 - **L**iskov — qualsiasi `RosCommandRunner` (reale o fake) e' interscambiabile;
   i test lo dimostrano usando `FakeRosCommandRunner`.
 - **I**nterface Segregation — protocolli minimali (`RosCommandRunner`,
-  `HealthCheck`, `LevelStrategy`) espongono solo cio' che serve.
+  `LevelStrategy`) espongono solo cio' che serve.
 - **D**ependency Inversion — i service dipendono da astrazioni, non da
   `subprocess`; le concrezioni sono iniettate dalla composition root.
 
@@ -115,7 +108,6 @@ istanza in tutta l'applicazione.
 | Obiettivo                          | Dove intervenire                                              |
 | ---------------------------------- | ------------------------------------------------------------- |
 | Nuovo endpoint                     | Aggiungi un router in `app/api/routes/` e includilo in `routes/__init__.py`. |
-| Nuova euristica di salute          | Crea una classe che implementa `HealthCheck` e registrala in `get_health_service`. |
 | Nuova regola di classificazione log | Aggiungi una `RegexLevelStrategy` in `log_service.py`.        |
 | Backend ROS alternativo (rclpy)    | Implementa `RosCommandRunner` e cambialo in `get_runner`.     |
 | Nuovo dato esposto                 | Aggiungi un modello in `models/schemas.py`.                   |

@@ -13,6 +13,7 @@
   --green: #2ea043;
   --red: #f85149;
   --yellow: #d29922;
+  --zombie: #a371f7;
 }
 
 .muted {
@@ -40,6 +41,15 @@
 .dot-yellow {
   background: var(--yellow);
   box-shadow: 0 0 8px var(--yellow);
+}
+/* Lo zombie ha un colore (viola) e una forma distinti dagli altri stati: cosi'
+   un'entita' "fantasma" (publisher/server crashati) si riconosce a colpo
+   d'occhio rispetto a un semplice errore rosso. */
+.dot-zombie {
+  background: var(--zombie);
+  box-shadow: 0 0 8px var(--zombie);
+  border-radius: 2px;
+  animation: blink 1.2s ease-in-out infinite;
 }
 
 /* ---- Pallino di stato del pannello (visibile solo quando collassato) ----
@@ -129,6 +139,30 @@
   text-align: right;
 }
 
+/* ---- Entita' del grafo (topic / servizi / azioni) ---- */
+/* Riusano il layout di .node-list li ma non sono cliccabili. Il tipo
+   (messaggio/servizio/azione) e' allineato a destra in piccolo. */
+.entity-type {
+  margin-left: auto;
+  color: var(--bs-secondary-color);
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+.zombie-badge {
+  letter-spacing: 0.04em;
+}
+
+/* L'intera riga zombie viene evidenziata (sfondo viola tenue + nome colorato)
+   per distinguerla nettamente dalle entita' sane o "in attesa". */
+.entity-zombie {
+  background: rgba(163, 113, 247, 0.12);
+  border-radius: 4px;
+}
+.entity-zombie .node-name {
+  color: var(--zombie);
+}
+
 /* ---- Tabelle: campi monospace ---- */
 .data-table td.mono {
   font-family: monospace;
@@ -154,6 +188,12 @@
 
 #logs-table td.mono {
   font-family: monospace;
+}
+
+/* Colonna timestamp: compatta, su una sola riga, leggermente attenuata. */
+.log-time-cell {
+  white-space: nowrap;
+  color: var(--bs-secondary-color);
 }
 
 .log-msg-cell {

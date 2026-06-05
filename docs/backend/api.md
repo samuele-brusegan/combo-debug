@@ -43,24 +43,38 @@ Righe di log classificate per severita'.
 | `max_entries` | int (1..10000)  | 500     | Numero massimo di righe.                     |
 
 ```json
-[ { "level": "error", "message": "[ERROR] ...", "source": "node.log", "line_number": 12 } ]
+[ { "level": "error", "message": "[ERROR] ...", "source": "talker", "line_number": 12, "timestamp": "2026-06-05T14:23:01.123" } ]
 ```
+Il campo `timestamp` (ISO 8601) proviene dallo `stamp` del messaggio `/rosout`
+quando i log sono live; e' `null` per i log letti dai file locali. Il frontend
+lo mostra in una colonna dedicata e lo include nell'export CSV.
 
 ### `GET /api/logs/summary`
 Conteggio righe per livello: `{ "info": 10, "warn": 2, "error": 1 }`.
 
-## Salute / spin bloccato — requisito 4
+## Grafo: topic, servizi e azioni (con rilevamento zombie)
 
-### `GET /api/health`
-Report euristico basato sulla frequenza dei topic attesi.
+### `GET /api/graph`
+Restituisce topic, servizi e azioni del grafo con il loro stato. Lo stato e'
+derivato incrociando `ros2 <topic|service|action> list` con l'aggregazione di
+`ros2 node info` sui nodi attivi:
+
+- `green`  — produttore attivo (publisher per i topic, server per servizi/azioni);
+- `yellow` — solo consumatori attivi (subscriber/client), produttore mancante;
+- `zombie` — entita' ancora nel grafo ma **nessun** nodo attivo associato
+  (tutti i publisher/server, o client, sono crashati lasciando endpoint
+  fantasma nella discovery DDS).
+
+I servizi parametro standard di ogni nodo (`*/get_parameters`, `*/set_parameters`, ...)
+vengono filtrati per ridurre il rumore.
 ```json
 {
-  "node": "system",
-  "status": "yellow",
   "topics": [
-    { "topic": "/heartbeat", "expected_hz": 1.0, "measured_hz": null, "healthy": false, "detail": "..." }
+    { "name": "/chatter", "kind": "topic", "status": "green", "entity_type": "std_msgs/msg/String", "producers": ["talker"], "consumers": ["listener"], "reason": "1 publisher attivo/i: talker." },
+    { "name": "/ghost", "kind": "topic", "status": "zombie", "entity_type": "", "producers": [], "consumers": [], "reason": "Zombie: presente nel grafo ma nessun publisher/subscriber attivo ..." }
   ],
-  "notes": ["Topic '/heartbeat' sotto soglia: ..."]
+  "services": [ { "name": "/add_two_ints", "kind": "service", "status": "green", "producers": ["talker"], "consumers": ["listener"], "reason": "..." } ],
+  "actions":  [ { "name": "/fibonacci", "kind": "action", "status": "green", "producers": ["talker"], "consumers": [], "reason": "..." } ]
 }
 ```
 
@@ -103,4 +117,11 @@ Rileva nodi e topic presenti nel grafo con la config corrente, per popolare i
 valori attesi dalla UI senza digitarli a mano.
 ```json
 { "available": true, "nodes": ["/lidar", "/robot_state_publisher"], "topics": ["/scan", "/tf"], "detail": "Rilevati 2 nodi e 2 topic nel grafo." }
+```
+
+### `GET /api/connection/rmw`
+Implementazioni RMW installate nel container (rilevate via `ros2 pkg list`) e
+quella attiva, per popolare il menu a tendina `RMW_IMPLEMENTATION` della UI.
+```json
+{ "available": ["rmw_cyclonedds_cpp", "rmw_fastrtps_cpp"], "current": "rmw_fastrtps_cpp", "detail": "2 implementazioni RMW installate. ..." }
 ```

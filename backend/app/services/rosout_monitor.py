@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import threading
 from collections import deque
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from app.models.schemas import LogEntry, LogLevel
@@ -242,9 +243,35 @@ class RosoutMonitor:
         name = str(getattr(msg, "name", "") or "sconosciuto")
         text = str(getattr(msg, "msg", ""))
         line = int(getattr(msg, "line", 0) or 0)
-        entry = LogEntry(level=level, message=text, source=name, line_number=line)
+        timestamp = self._extract_timestamp(getattr(msg, "stamp", None))
+        entry = LogEntry(
+            level=level,
+            message=text,
+            source=name,
+            line_number=line,
+            timestamp=timestamp,
+        )
         with self._lock:
             self._buffer.append(entry)
+
+    @staticmethod
+    def _extract_timestamp(stamp: object) -> str:  # pragma: no cover - richiede ROS
+        """Converte lo ``stamp`` di un messaggio ``Log`` in stringa ISO 8601.
+
+        Lo ``stamp`` e' un ``builtin_interfaces/msg/Time`` (``sec``/``nanosec``).
+        Se non e' valorizzato (orario simulato non impostato) si ripiega
+        sull'orario di ricezione del backend, cosi' la colonna e' sempre piena.
+
+        Args:
+            stamp: Campo ``stamp`` del messaggio ``/rosout`` (o ``None``).
+
+        Returns:
+            L'istante dell'evento in formato ISO 8601 con i millisecondi.
+        """
+        sec = int(getattr(stamp, "sec", 0) or 0)
+        nanosec = int(getattr(stamp, "nanosec", 0) or 0)
+        epoch = sec + nanosec / 1e9 if sec > 0 else datetime.now().timestamp()
+        return datetime.fromtimestamp(epoch).isoformat(timespec="milliseconds")
 
     def add_entries(self, entries: Iterable[LogEntry]) -> None:
         """Inietta manualmente delle righe nel buffer (utile nei test).

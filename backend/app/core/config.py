@@ -27,13 +27,9 @@ class Settings(BaseSettings):
         api_prefix: Prefisso comune a tutte le route REST.
         ros_log_dir: Cartella radice dei log ROS 2 da analizzare.
         ros_command_timeout: Timeout (secondi) per ogni SysCall alla CLI ros2.
-        topic_hz_window: Durata (secondi) della finestra di misura di `ros2 topic hz`.
-        topic_hz_attempts: Numero di tentativi di misura per topic. Una misura puo'
-            fallire in modo transitorio (finestra troppo corta per catturare
-            abbastanza messaggi): si ritenta prima di dichiarare il topic "sotto
-            soglia", evitando falsi positivi sui topic sani.
-        expected_topics: Topic attesi usati dall'euristica di nodo bloccato,
-            nel formato ``topic=frequenza_minima_hz`` separati da virgola.
+        expected_topics: Topic attesi indicati dalla UI di connessione, nel
+            formato ``topic=frequenza_minima_hz`` separati da virgola (memorizzati
+            per comodita' dell'utente).
         expected_nodes: Nodi che ci si aspetta siano sempre presenti nel grafo.
             Se uno di questi e' assente viene mostrato in ROSSO (crashato/offline).
             Elenco separato da virgola.
@@ -52,8 +48,6 @@ class Settings(BaseSettings):
     api_prefix: str = "/api"
     ros_log_dir: Path = Path.home() / ".ros" / "log"
     ros_command_timeout: float = 8.0
-    topic_hz_window: float = 6.0
-    topic_hz_attempts: int = 2
     expected_topics: str = "/chatter=0.5,/heartbeat=1.0"
     expected_nodes: str = "/talker,/listener,/stuck_spinner,/crasher"
     cors_origins: list[str] = ["*"]
@@ -69,25 +63,6 @@ class Settings(BaseSettings):
             Lista dei nomi dei nodi attesi, ripulita da spazi e voci vuote.
         """
         return [name.strip() for name in self.expected_nodes.split(",") if name.strip()]
-
-    def parse_expected_topics(self) -> dict[str, float]:
-        """Converte ``expected_topics`` in una mappa topic -> frequenza minima.
-
-        Returns:
-            Dizionario che associa ad ogni topic atteso la sua frequenza minima
-            accettabile in Hz. Le voci malformate vengono ignorate.
-        """
-        result: dict[str, float] = {}
-        for raw in self.expected_topics.split(","):
-            entry = raw.strip()
-            if not entry or "=" not in entry:
-                continue
-            topic, _, freq = entry.partition("=")
-            try:
-                result[topic.strip()] = float(freq.strip())
-            except ValueError:
-                continue
-        return result
 
 
 @lru_cache

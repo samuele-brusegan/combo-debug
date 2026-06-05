@@ -24,6 +24,16 @@ _RELEVANT_PREFIXES: tuple[str, ...] = (
     "FASTDDS",
 )
 
+# Variabili che definiscono *quale* grafo ROS viene osservato. Devono sempre
+# riflettere la connessione attiva: la riconfigurazione a caldo le scrive in
+# ``os.environ`` (vedi ConnectionService), che e' anche la sorgente letta qui,
+# quindi il pannello mostra sempre il ROS collegato e non i valori della demo.
+# Per ciascuna indichiamo il valore *effettivo* usato dai comandi ``ros2`` se la
+# variabile non e' impostata, cosi' la voce e' sempre presente e non ambigua.
+_CONNECTION_EFFECTIVE_DEFAULTS: dict[str, str] = {
+    "ROS_DOMAIN_ID": "0",
+}
+
 
 class EnvService:
     """Estrae le variabili d'ambiente ROS dal processo corrente.
@@ -44,13 +54,22 @@ class EnvService:
     def get_ros_variables(self) -> list[EnvVariable]:
         """Restituisce le variabili d'ambiente pertinenti a ROS 2.
 
+        I valori sono letti live da ``os.environ``: poiche' la riconfigurazione
+        a caldo della connessione vi scrive i parametri DDS, il risultato
+        riflette sempre il ROS *attualmente collegato* (non i valori della demo).
+        Le variabili che definiscono la connessione sono sempre presenti, col
+        valore effettivo usato dai comandi ``ros2`` quando non impostate.
+
         Returns:
-            Lista ordinata per chiave delle variabili il cui nome inizia con
-            uno dei prefissi rilevanti.
+            Lista ordinata per chiave delle variabili rilevanti.
         """
-        variables = [
-            EnvVariable(key=key, value=value)
+        values: dict[str, str] = {
+            key: value
             for key, value in self._environ.items()
             if key.upper().startswith(_RELEVANT_PREFIXES)
-        ]
+        }
+        for key, default in _CONNECTION_EFFECTIVE_DEFAULTS.items():
+            if key not in values:
+                values[key] = self._environ.get(key, default)
+        variables = [EnvVariable(key=key, value=value) for key, value in values.items()]
         return sorted(variables, key=lambda item: item.key)

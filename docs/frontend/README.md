@@ -34,9 +34,25 @@ formattazione dei log.
 | Pannello                    | Requisito | Endpoint usato                 |
 | --------------------------- | --------- | ------------------------------ |
 | Nodi ROS 2                  | 1         | `GET /api/nodes`               |
-| Salute & spin bloccato      | 4         | `GET /api/health`              |
+| Topics                      | —         | `GET /api/graph`               |
+| Servizi                     | —         | `GET /api/graph`               |
+| Azioni                      | —         | `GET /api/graph`               |
 | Variabili d'ambiente ROS    | 2         | `GET /api/env`                 |
 | Log dei nodi                | 3         | `GET /api/logs`, `/api/logs/summary` |
+
+I pannelli **Topics**, **Servizi** e **Azioni** sono popolati da un'unica
+chiamata a `GET /api/graph` (`refreshGraph()`) e mostrano lo stato di ogni
+entita': verde (produttore attivo), giallo (solo consumatori) e **zombie**
+(nel grafo ma senza nodi attivi associati). Lo zombie ha un color-coding
+distinto (viola, pallino quadrato lampeggiante, badge `ZOMBIE` e riga
+evidenziata) per distinguerlo da un semplice errore rosso.
+
+### Log: timestamp ed export CSV
+
+La tabella dei log ha una colonna **Timestamp** (dallo `stamp` di `/rosout`).
+Il pulsante **Esporta CSV** nell'header del pannello scarica le righe
+**attualmente filtrate** (stesso insieme mostrato in tabella) in un file
+`combo-debug-logs-<istante>.csv` con colonne `timestamp,livello,nodo,messaggio`.
 
 ## Funzionamento
 
@@ -60,10 +76,10 @@ formattazione dei log.
   su tutti i pannelli insieme.
 - **Pallino di stato lampeggiante**: quando un pannello e' **collassato**, nel suo
   header compare un pallino che lampeggia per segnalare problemi:
-  - **rosso**: presenza di errori (nodo rosso, stato salute rosso, log con
-    errori/fatal);
-  - **giallo**: presenza di warning (nodo giallo, stato salute giallo, log con
-    warning).
+  - **rosso**: presenza di errori (nodo rosso, entita' **zombie** in
+    topic/servizi/azioni, log con errori/fatal);
+  - **giallo**: presenza di warning (nodo giallo, entita' gialla — produttore
+    mancante — in topic/servizi/azioni, log con warning).
   - Quando il pannello e' espanso il pallino e' **nascosto** (i problemi sono gia'
     visibili nel contenuto); il pannello `env` non ha una semantica di problema,
     quindi non mostra mai il pallino.
@@ -90,6 +106,17 @@ formattazione dei log.
   si stanno osservando i nodi di esempio, **"ROS reale · dominio N"** (verde)
   altrimenti. E' aggiornato ad ogni `refreshAll()` da `refreshConnectionBadge()`
   in base a `demo_mode` restituito da `GET /api/connection`.
+
+## Nodi demo
+
+In modalita' DEMO, il backend avvia i nodi demo descritti in
+[`../ros/demo-nodes.md`](../ros/demo-nodes.md). Questi includono:
+- **Topic**: `talker`, `listener`, `stuck_spinner`, `crasher`
+- **Servizi**: `add_two_ints` (sano + zombie), `reset_counter` (sano + zombie)
+- **Azioni**: `fibonacci` (sana + zombie), `navigate_to_pose` (sana + zombie)
+
+Ogni tipo di entita' ha almeno un esempio sano (VERDE) e due zombie (VIOLA):
+uno per assenza di publisher/server e uno per assenza di subscriber/client.
 
 ## Sicurezza
 

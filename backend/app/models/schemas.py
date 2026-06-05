@@ -72,46 +72,81 @@ class LogEntry(BaseModel):
         message: Contenuto testuale della riga.
         source: File di log di provenienza (relativo alla cartella dei log).
         line_number: Numero di riga all'interno del file di origine.
+        timestamp: Istante dell'evento in formato ISO 8601 (``None`` se non
+            disponibile). Per i log live proviene dallo ``stamp`` del messaggio
+            ``/rosout``; per i file locali non e' valorizzato.
     """
 
     level: LogLevel
     message: str
     source: str
     line_number: int
+    timestamp: str | None = None
 
 
-class TopicHealth(BaseModel):
-    """Esito del controllo di frequenza su un topic atteso.
-
-    Attributes:
-        topic: Nome del topic monitorato.
-        expected_hz: Frequenza minima attesa in Hz.
-        measured_hz: Frequenza misurata in Hz (``None`` se non misurabile).
-        healthy: ``True`` se la frequenza misurata e' adeguata.
-        detail: Descrizione testuale dell'esito.
-    """
-
-    topic: str
-    expected_hz: float
-    measured_hz: float | None
-    healthy: bool
-    detail: str
-
-
-class HealthReport(BaseModel):
-    """Report euristico sullo stato di salute di un nodo / del sistema.
+class EntityStatus(str, Enum):
+    """Stato di un'entita' del grafo (topic, servizio o azione).
 
     Attributes:
-        node: Nome del nodo a cui il report si riferisce.
-        status: Stato complessivo derivato dalle euristiche.
-        topics: Esiti dei controlli sui topic attesi.
-        notes: Annotazioni aggiuntive prodotte dalle euristiche.
+        GREEN: Entita' sana: esiste almeno un produttore attivo (publisher per
+            i topic, server per servizi/azioni).
+        YELLOW: Esistono solo consumatori attivi (subscriber/client) ma nessun
+            produttore: l'entita' e' "in attesa" (produttore mancante/crashato).
+        ZOMBIE: L'entita' e' ancora presente nel grafo DDS ma nessun nodo
+            attivo la usa: tutti i produttori/consumatori associati sono
+            crashati (endpoint fantasma rimasti nella discovery).
     """
 
-    node: str
-    status: NodeStatus
-    topics: list[TopicHealth] = Field(default_factory=list)
-    notes: list[str] = Field(default_factory=list)
+    GREEN = "green"
+    YELLOW = "yellow"
+    ZOMBIE = "zombie"
+
+
+class GraphEntityKind(str, Enum):
+    """Tipo di entita' del grafo ROS 2 rilevata."""
+
+    TOPIC = "topic"
+    SERVICE = "service"
+    ACTION = "action"
+
+
+class GraphEntity(BaseModel):
+    """Topic, servizio o azione osservato nel grafo ROS 2.
+
+    Attributes:
+        name: Nome completo dell'entita' (es. ``/chatter``).
+        kind: Tipo di entita' (topic/servizio/azione).
+        status: Stato color-coded (sano / in attesa / zombie).
+        entity_type: Tipo del messaggio/servizio/azione, se noto.
+        producers: Nodi attivi che producono (publisher / server).
+        consumers: Nodi attivi che consumano (subscriber / client).
+        reason: Spiegazione testuale dello stato (utile per il debug).
+    """
+
+    name: str
+    kind: GraphEntityKind
+    status: EntityStatus
+    entity_type: str = ""
+    producers: list[str] = Field(default_factory=list)
+    consumers: list[str] = Field(default_factory=list)
+    reason: str = ""
+
+
+class GraphSnapshot(BaseModel):
+    """Fotografia del grafo ROS 2: topic, servizi e azioni con il loro stato.
+
+    Aggrega in un'unica risposta i tre elenchi cosi' che la dashboard possa
+    popolare i rispettivi pannelli con una sola richiesta.
+
+    Attributes:
+        topics: Topic rilevati con il relativo stato.
+        services: Servizi rilevati con il relativo stato.
+        actions: Azioni rilevate con il relativo stato.
+    """
+
+    topics: list[GraphEntity] = Field(default_factory=list)
+    services: list[GraphEntity] = Field(default_factory=list)
+    actions: list[GraphEntity] = Field(default_factory=list)
 
 
 class ConnectionConfig(BaseModel):
@@ -198,4 +233,22 @@ class ConnectionDiscovery(BaseModel):
     available: bool
     nodes: list[str] = Field(default_factory=list)
     topics: list[str] = Field(default_factory=list)
+    detail: str = ""
+
+
+class RmwOptions(BaseModel):
+    """Implementazioni RMW disponibili per il collegamento al grafo ROS 2.
+
+    Usato dalla UI per popolare il menu a tendina di ``RMW_IMPLEMENTATION`` con
+    le RMW realmente installate nel container (cosi' l'utente sceglie tra quelle
+    che funzionano davvero, invece di digitarle a rischio di errore).
+
+    Attributes:
+        available: Nomi dei pacchetti RMW installati e selezionabili.
+        current: RMW attualmente attiva (``RMW_IMPLEMENTATION`` corrente).
+        detail: Messaggio descrittivo (es. come aggiungerne di nuove).
+    """
+
+    available: list[str] = Field(default_factory=list)
+    current: str = ""
     detail: str = ""

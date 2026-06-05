@@ -21,7 +21,9 @@ const API_BASE = "/api";
  */
 const panelSeverity = {
   "panel-nodes": "none",
-  "panel-health": "none",
+  "panel-topics": "none",
+  "panel-services": "none",
+  "panel-actions": "none",
   "panel-env": "none",
   "panel-logs": "none",
 };
@@ -69,7 +71,10 @@ async function apiPost(path, body) {
  * @returns {string} Nome della classe CSS.
  */
 function dotClass(status) {
-  return { green: "dot-green", red: "dot-red", yellow: "dot-yellow" }[status] || "dot-yellow";
+  return (
+    { green: "dot-green", red: "dot-red", yellow: "dot-yellow", zombie: "dot-zombie" }[status] ||
+    "dot-yellow"
+  );
 }
 
 /**
@@ -176,12 +181,31 @@ function isFilterEmpty() {
 }
 
 /**
+ * Formatta un timestamp ISO 8601 per la colonna della tabella (solo orario con
+ * millisecondi). Restituisce un trattino se il timestamp non e' disponibile.
+ * @param {string|null|undefined} iso Timestamp ISO 8601 (o assente).
+ * @returns {string} Orario compatto (es. "14:23:01.123") oppure "—".
+ */
+function formatLogTime(iso) {
+  if (!iso) {
+    return "—";
+  }
+  const t = String(iso).split("T")[1];
+  return t ? t.replace(/[+-]\d{2}:\d{2}$/, "") : String(iso);
+}
+
+/** Restituisce le voci di log correnti dopo l'applicazione del filtro attivo. */
+function currentFilteredEntries() {
+  return logEntriesCache.filter((entry) => LogFilter.matches(logFilterAst, entry));
+}
+
+/**
  * Renderizza la tabella dei log applicando il filtro corrente alla cache.
  * @returns {void}
  */
 function renderLogTable() {
   const tbody = document.querySelector("#logs-table tbody");
-  const filtered = logEntriesCache.filter((entry) => LogFilter.matches(logFilterAst, entry));
+  const filtered = currentFilteredEntries();
 
   // Riepilogo del filtro attivo accanto alla tabella.
   const activeEl = document.getElementById("log-active-filter");
@@ -192,7 +216,7 @@ function renderLogTable() {
 
   if (filtered.length === 0) {
     tbody.innerHTML =
-      '<tr><td colspan="3" class="muted">Nessuna riga di log corrisponde al filtro.</td></tr>';
+      '<tr><td colspan="4" class="muted">Nessuna riga di log corrisponde al filtro.</td></tr>';
     return;
   }
   tbody.innerHTML = "";
@@ -200,6 +224,7 @@ function renderLogTable() {
     const tr = document.createElement("tr");
     tr.className = `log-row log-${entry.level}`;
     tr.innerHTML =
+      `<td class="mono log-time-cell" title="${escapeHtml(entry.timestamp || "")}">${escapeHtml(formatLogTime(entry.timestamp))}</td>` +
       `<td><span class="badge ${logLevelBadge(entry.level)}">${escapeHtml(entry.level)}</span></td>` +
       `<td class="mono log-node-cell" title="Filtra su questo nodo">${escapeHtml(entry.source)}</td>` +
       `<td class="mono log-msg-cell">${escapeHtml(entry.message)}</td>`;
@@ -250,11 +275,20 @@ function renderFilterBuilder() {
     return;
   }
   LogFilter.renderBuilder(builder, logFilterAst, () => {
-    // Modifica proveniente dai blocchi: aggiorna testo + tabella.
+    // Modifica proveniente dai blocchi: aggiorna testo + tabella, mantenendo
+    // testo e blocchi sempre allineati. Se un valore (es. una regex) non e'
+    // valido lo segnaliamo, senza mai far divergere testo e blocchi.
     const textInput = document.getElementById("log-filter-text");
+    const errorEl = document.getElementById("log-filter-error");
     textInput.value = LogFilter.serialize(logFilterAst);
-    textInput.classList.remove("is-invalid");
-    document.getElementById("log-filter-error").textContent = "";
+    try {
+      LogFilter.parse(textInput.value);
+      textInput.classList.remove("is-invalid");
+      errorEl.textContent = "";
+    } catch (err) {
+      textInput.classList.add("is-invalid");
+      errorEl.textContent = err.message;
+    }
     renderLogTable();
   });
 }
@@ -288,10 +322,48 @@ function clearLogFilter() {
   renderLogTable();
 }
 
-/** Collega gli eventi della finestra di filtro. */
+/**
+ * Codifica un singolo campo per il formato CSV (RFC 4180): racchiude tra
+ * virgolette e raddoppia le virgolette interne.
+ * @param {unknown} value Valore da codificare.
+ * @returns {string} Campo CSV sicuro.
+ */
+function csvField(value) {
+  return `"${String(value ?? "").replace(/"/g, '""')}"`;
+}
+
+/**
+ * Esporta in un file CSV i log attualmente filtrati (stesso insieme mostrato in
+ * tabella). Le colonne sono: timestamp, livello, nodo, messaggio.
+ * @returns {void}
+ */
+function exportFilteredLogsCsv() {
+  const entries = currentFilteredEntries();
+  const header = ["timestamp", "livello", "nodo", "messaggio"];
+  const rows = entries.map((entry) =>
+    [entry.timestamp || "", entry.level, entry.source, entry.message]
+      .map(csvField)
+      .join(","),
+  );
+  // BOM iniziale: aiuta Excel a riconoscere la codifica UTF-8.
+  const csv = "\uFEFF" + [header.map(csvField).join(","), ...rows].join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `combo-debug-logs-${stamp}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Collega gli eventi della finestra di filtro e dell'export. */
 function setupLogFilter() {
   document.getElementById("log-filter-text").addEventListener("input", onFilterTextInput);
   document.getElementById("log-filter-clear").addEventListener("click", clearLogFilter);
+  document.getElementById("log-export-csv").addEventListener("click", exportFilteredLogsCsv);
   // Alla prima apertura del modal assicura che i blocchi siano renderizzati.
   document
     .getElementById("log-filter-modal")
@@ -320,37 +392,66 @@ async function refreshEnv() {
 }
 
 /**
- * Aggiorna il report di salute / spin bloccato (requisito 4).
+ * Renderizza un elenco di entita' del grafo (topic/servizi/azioni) con il
+ * color-coding dello stato ed evidenziando gli zombie in modo distinto.
+ * @param {string} listId Id della lista <ul> da popolare.
+ * @param {string} panelId Id del pannello (per il pallino di severita').
+ * @param {Array<object>} entities Entita' restituite da /graph.
+ * @param {string} emptyText Testo mostrato quando non ci sono entita'.
+ * @returns {void}
+ */
+function renderGraphEntities(listId, panelId, entities, emptyText) {
+  const list = document.getElementById(listId);
+  if (!entities || entities.length === 0) {
+    list.innerHTML = `<li class="muted">${escapeHtml(emptyText)}</li>`;
+    setPanelSeverity(panelId, "none");
+    return;
+  }
+  list.innerHTML = "";
+  let severity = "none";
+  for (const entity of entities) {
+    // Lo zombie e' un problema "rosso" per il pallino del pannello; il giallo
+    // (produttore mancante) e' un'attenzione minore.
+    if (entity.status === "zombie") {
+      severity = "red";
+    } else if (entity.status === "yellow" && severity !== "red") {
+      severity = "yellow";
+    }
+    const li = document.createElement("li");
+    li.className = entity.status === "zombie" ? "graph-item entity-zombie" : "graph-item";
+    li.title = entity.reason || "";
+    const zombieBadge =
+      entity.status === "zombie"
+        ? '<span class="badge text-bg-dark zombie-badge">ZOMBIE</span>'
+        : "";
+    const typeText = entity.entity_type
+      ? `<span class="entity-type mono">${escapeHtml(entity.entity_type)}</span>`
+      : "";
+    li.innerHTML =
+      `<span class="dot ${dotClass(entity.status)}"></span>` +
+      `<span class="node-name">${escapeHtml(entity.name)}</span>` +
+      zombieBadge +
+      typeText;
+    list.appendChild(li);
+  }
+  setPanelSeverity(panelId, severity);
+}
+
+/**
+ * Aggiorna i pannelli Topics, Servizi e Azioni con i dati del grafo ROS 2,
+ * evidenziando le entita' zombie (presenti nel grafo ma senza nodi attivi).
  * @returns {Promise<void>}
  */
-async function refreshHealth() {
-  const statusEl = document.getElementById("health-status");
-  const tbody = document.querySelector("#health-table tbody");
-  const report = await apiGet("/health");
-
-  const badgeClass = {
-    green: "text-bg-success",
-    yellow: "text-bg-warning",
-    red: "text-bg-danger",
-  }[report.status] || "text-bg-secondary";
-  statusEl.innerHTML = `Stato sistema: <span class="badge ${badgeClass}">${report.status}</span>`;
-
-  tbody.innerHTML = "";
-  for (const topic of report.topics) {
-    const tr = document.createElement("tr");
-    const measured = topic.measured_hz === null ? "—" : topic.measured_hz;
-    const badge = topic.healthy ? "text-bg-success" : "text-bg-danger";
-    const label = topic.healthy ? "ok" : "sotto soglia";
-    tr.innerHTML =
-      `<td class="mono">${escapeHtml(topic.topic)}</td>` +
-      `<td>${topic.expected_hz}</td>` +
-      `<td>${measured}</td>` +
-      `<td><span class="badge ${badge}">${label}</span></td>`;
-    tbody.appendChild(tr);
-  }
-
-  const severity = { red: "red", yellow: "yellow", green: "none" }[report.status] || "none";
-  setPanelSeverity("panel-health", severity);
+async function refreshGraph() {
+  const graph = await apiGet("/graph");
+  renderGraphEntities("topics-list", "panel-topics", graph.topics, "Nessun topic rilevato.");
+  renderGraphEntities(
+    "services-list",
+    "panel-services",
+    graph.services,
+    "Nessun servizio rilevato.",
+  );
+  renderGraphEntities("actions-list", "panel-actions", graph.actions, "Nessuna azione rilevata.");
 }
 
 /**
@@ -444,8 +545,8 @@ async function refreshAll() {
     const tasks = [
       ["connessione", refreshConnectionBadge],
       ["nodi", refreshNodes],
+      ["grafo", refreshGraph],
       ["env", refreshEnv],
-      ["salute", refreshHealth],
       ["log", refreshLogs],
     ];
     await Promise.all(
@@ -481,11 +582,62 @@ function escapeHtml(value) {
 async function loadConnectionConfig() {
   const config = await apiGet("/connection");
   document.getElementById("conn-domain").value = config.ros_domain_id ?? "";
-  document.getElementById("conn-rmw").value = config.rmw_implementation ?? "";
   document.getElementById("conn-discovery").value = config.ros_discovery_server ?? "";
   document.getElementById("conn-nodes").value = config.expected_nodes ?? "";
   document.getElementById("conn-topics").value = config.expected_topics ?? "";
   document.getElementById("conn-logdir").value = config.ros_log_dir ?? "";
+  await loadRmwOptions(config.rmw_implementation ?? "");
+}
+
+/** Valore speciale che, nel menu RMW, attiva l'input testuale personalizzato. */
+const RMW_CUSTOM = "__custom__";
+
+/**
+ * Popola il menu a tendina delle RMW con quelle installate nel container e
+ * seleziona quella corrente. Aggiunge l'opzione "Altro…" per valori custom.
+ * @param {string} current RMW attualmente configurata.
+ * @returns {Promise<void>}
+ */
+async function loadRmwOptions(current) {
+  const select = document.getElementById("conn-rmw");
+  let options;
+  try {
+    options = await apiGet("/connection/rmw");
+  } catch (_err) {
+    options = { available: current ? [current] : [], current };
+  }
+  const available = options.available || [];
+  // RMW corrente non nel catalogo (es. personalizzata gia' attiva): la includo.
+  const list = current && !available.includes(current) ? [...available, current] : available;
+
+  select.innerHTML = "";
+  select.add(new Option("(default ROS)", ""));
+  for (const rmw of list) {
+    select.add(new Option(rmw, rmw));
+  }
+  select.add(new Option("Altro… (personalizzata)", RMW_CUSTOM));
+  select.value = current && list.includes(current) ? current : "";
+  updateRmwCustomVisibility();
+}
+
+/** Mostra/nasconde l'input RMW personalizzato in base alla selezione. */
+function updateRmwCustomVisibility() {
+  const select = document.getElementById("conn-rmw");
+  const custom = document.getElementById("conn-rmw-custom");
+  const isCustom = select.value === RMW_CUSTOM;
+  custom.classList.toggle("d-none", !isCustom);
+  if (isCustom) {
+    custom.focus();
+  }
+}
+
+/** Restituisce la RMW effettiva scelta (menu o valore personalizzato). */
+function selectedRmw() {
+  const select = document.getElementById("conn-rmw");
+  if (select.value === RMW_CUSTOM) {
+    return document.getElementById("conn-rmw-custom").value.trim();
+  }
+  return select.value.trim();
 }
 
 /**
@@ -495,7 +647,7 @@ async function loadConnectionConfig() {
 function buildConnectionUpdate() {
   return {
     ros_domain_id: document.getElementById("conn-domain").value.trim(),
-    rmw_implementation: document.getElementById("conn-rmw").value.trim(),
+    rmw_implementation: selectedRmw(),
     ros_discovery_server: document.getElementById("conn-discovery").value.trim(),
     expected_nodes: document.getElementById("conn-nodes").value.trim(),
     expected_topics: document.getElementById("conn-topics").value.trim(),
@@ -649,6 +801,7 @@ function setupConnectionModal() {
       showConnectionResult("danger", `Impossibile leggere la configurazione: ${escapeHtml(err.message)}`),
     );
   });
+  document.getElementById("conn-rmw").addEventListener("change", updateRmwCustomVisibility);
   document.getElementById("connection-discover").addEventListener("click", discoverGraph);
   document.getElementById("connection-test").addEventListener("click", testConnection);
   document.getElementById("connection-apply").addEventListener("click", applyAndRefresh);
