@@ -309,3 +309,8 @@
 .filter-empty {
   font-style: italic;
 }
+
+.max-panel-height {
+  max-height: 30vh;
+  overflow: auto;
+}

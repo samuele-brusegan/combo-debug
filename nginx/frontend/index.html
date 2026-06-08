@@ -1,496 +1,508 @@
 <!DOCTYPE html>
 <html lang="it" data-bs-theme="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Combo-Debug - Dashboard ROS 2</title>
-    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <!-- Bootstrap 5 servito localmente per il funzionamento 100% offline
-         (tema scuro abilitato da data-bs-theme sull'<html>). Esegui
-         ./download-vendor.sh per popolare nginx/frontend/vendor/. -->
-    <link rel="stylesheet" href="vendor/bootstrap/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <header class="app-header border-bottom px-4 py-3">
-      <div class="d-flex align-items-center flex-wrap gap-3">
-        <h1 class="h4 mb-0 me-2">Combo-Debug</h1>
-        <span id="backend-status" class="badge text-bg-secondary">backend: ...</span>
-        <span id="connection-badge" class="badge d-none"></span>
-        <span id="last-update" class="muted">in attesa...</span>
-        <span id="clock" class="badge text-bg-secondary font-monospace" title="Ora esatta corrente"></span>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Combo-Debug - Dashboard ROS 2</title>
+		<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+		<!-- Bootstrap 5 servito localmente per il funzionamento 100% offline
+				 (tema scuro abilitato da data-bs-theme sull'<html>). Esegui
+				 ./download-vendor.sh per popolare nginx/frontend/vendor/. -->
+		<!--link rel="stylesheet" href="vendor/bootstrap/css/bootstrap.min.css" /-->
+		<link
+			rel="stylesheet"
+			href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+			integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+			crossorigin="anonymous"
+		/>
 
-        <div class="ms-auto d-flex align-items-center flex-wrap gap-2">
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-secondary"
-            id="collapse-all"
-            title="Collassa tutti i pannelli"
-          >
-            Collassa tutti
-          </button>
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-secondary"
-            id="expand-all"
-            title="Espandi tutti i pannelli"
-          >
-            Espandi tutti
-          </button>
-          <button
-            type="button"
-            class="btn btn-sm btn-success"
-            data-bs-toggle="modal"
-            data-bs-target="#connection-modal"
-          >
-            Collega a ROS reale
-          </button>
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-primary"
-            data-bs-toggle="offcanvas"
-            data-bs-target="#settings-panel"
-            aria-controls="settings-panel"
-          >
-            Impostazioni
-          </button>
-        </div>
-      </div>
-    </header>
+		<link rel="stylesheet" href="styles.css" />
+		<!-- Bootstrap servito localmente (vedi <head> e ./download-vendor.sh). -->
+		<!-- <script defer src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script> -->
+		 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
+		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.min.js" integrity="sha384-G/EV+4j2dNv+tEPo3++6LCgdCROaejBqfUeNjuKAiuXbjrxilcCdDz6ZAVfHWe1Y" crossorigin="anonymous"></script>
+		<script defer src="filter.js"></script>
+		<script defer type="module" src="js/main.js"></script>
+	</head>
+	<body>
+		<header class="app-header border-bottom px-4 py-3">
+			<div class="d-flex align-items-center flex-wrap gap-3">
+				<h1 class="h4 mb-0 me-2">Combo-Debug</h1>
+				<span id="backend-status" class="badge text-bg-secondary">backend: ...</span>
+				<span id="connection-badge" class="badge d-none"></span>
+				<span id="last-update" class="muted">in attesa...</span>
+				<span id="clock" class="badge text-bg-secondary font-monospace" title="Ora esatta corrente"></span>
 
-    <!-- Pannello impostazioni: mostra/nascondi pannelli + preferenze. -->
-    <div
-      class="offcanvas offcanvas-end"
-      tabindex="-1"
-      id="settings-panel"
-      aria-labelledby="settings-title"
-    >
-      <div class="offcanvas-header border-bottom">
-        <h2 class="offcanvas-title h5 mb-0" id="settings-title">Impostazioni</h2>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Chiudi"></button>
-      </div>
-      <div class="offcanvas-body">
-        <div class="mb-3 form-check form-switch">
-          <input class="form-check-input" type="checkbox" id="autorefresh" checked />
-          <label class="form-check-label" for="autorefresh">Aggiornamento automatico</label>
-        </div>
+				<div class="ms-auto d-flex align-items-center flex-wrap gap-2">
+					<button
+						type="button"
+						class="btn btn-sm btn-outline-secondary"
+						id="collapse-all"
+						title="Collassa tutti i pannelli"
+					>
+						Collassa tutti
+					</button>
+					<button
+						type="button"
+						class="btn btn-sm btn-outline-secondary"
+						id="expand-all"
+						title="Espandi tutti i pannelli"
+					>
+						Espandi tutti
+					</button>
+					<button
+						type="button"
+						class="btn btn-sm btn-success"
+						data-bs-toggle="modal"
+						data-bs-target="#connection-modal"
+					>
+						Collega a ROS reale
+					</button>
+					<button
+						type="button"
+						class="btn btn-sm btn-outline-primary"
+						data-bs-toggle="offcanvas"
+						data-bs-target="#settings-panel"
+						aria-controls="settings-panel"
+					>
+						Impostazioni
+					</button>
+				</div>
+			</div>
+		</header>
 
-        <h3 class="h6 text-uppercase muted mt-4">Visibilita' pannelli</h3>
-        <p class="muted small">
-          Nascondi i pannelli che non ti servono. I pannelli collassati mostrano
-          un pallino lampeggiante (giallo/rosso) se contengono problemi.
-        </p>
+		<!-- Pannello impostazioni: mostra/nascondi pannelli + preferenze. -->
+		<div
+			class="offcanvas offcanvas-end"
+			tabindex="-1"
+			id="settings-panel"
+			aria-labelledby="settings-title"
+		>
+			<div class="offcanvas-header border-bottom">
+				<h2 class="offcanvas-title h5 mb-0" id="settings-title">Impostazioni</h2>
+				<button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Chiudi"></button>
+			</div>
+			<div class="offcanvas-body">
+				<div class="form-check form-switch">
+					<input class="form-check-input panel-toggle" type="checkbox" id="toggle-maxh" data-panel="panel-maxh" />
+					<label class="form-check-label" for="toggle-maxh">Maximum height for panels</label>
+				</div>
+				<div class="form-check form-switch">
+					<input class="form-check-input" type="checkbox" id="autorefresh" checked />
+					<label class="form-check-label" for="autorefresh">Aggiornamento automatico</label>
+				</div>
+				<hr>
+				<h3 class="h6 text-uppercase muted mt-4">Visibilita' pannelli</h3>
+				<p class="muted small">
+					Nascondi i pannelli che non ti servono. I pannelli collassati mostrano
+					un pallino lampeggiante (giallo/rosso) se contengono problemi.
+				</p>
 
-        <!-- Le checkbox controllano la visibilita' dei rispettivi pannelli
-             tramite l'attributo data-panel (gestito da js/panels.js). -->
-        <div class="form-check form-switch">
-          <input class="form-check-input panel-toggle" type="checkbox" id="toggle-nodes" data-panel="panel-nodes" checked />
-          <label class="form-check-label" for="toggle-nodes">Nodi ROS 2</label>
-        </div>
-        <div class="form-check form-switch">
-          <input class="form-check-input panel-toggle" type="checkbox" id="toggle-topics" data-panel="panel-topics" checked />
-          <label class="form-check-label" for="toggle-topics">Topics</label>
-        </div>
-        <div class="form-check form-switch">
-          <input class="form-check-input panel-toggle" type="checkbox" id="toggle-services" data-panel="panel-services" checked />
-          <label class="form-check-label" for="toggle-services">Servizi</label>
-        </div>
-        <div class="form-check form-switch">
-          <input class="form-check-input panel-toggle" type="checkbox" id="toggle-actions" data-panel="panel-actions" checked />
-          <label class="form-check-label" for="toggle-actions">Azioni</label>
-        </div>
-        <div class="form-check form-switch">
-          <input class="form-check-input panel-toggle" type="checkbox" id="toggle-env" data-panel="panel-env" checked />
-          <label class="form-check-label" for="toggle-env">Variabili d'ambiente ROS</label>
-        </div>
-        <div class="form-check form-switch">
-          <input class="form-check-input panel-toggle" type="checkbox" id="toggle-logs" data-panel="panel-logs" checked />
-          <label class="form-check-label" for="toggle-logs">Log dei nodi</label>
-        </div>
-      </div>
-    </div>
+				<!-- Le checkbox controllano la visibilita' dei rispettivi pannelli
+						 tramite l'attributo data-panel (gestito da js/panels.js). -->
+				<div class="form-check form-switch">
+					<input class="form-check-input panel-toggle" type="checkbox" id="toggle-nodes" data-panel="panel-nodes" checked />
+					<label class="form-check-label" for="toggle-nodes">Nodi ROS 2</label>
+				</div>
+				<div class="form-check form-switch">
+					<input class="form-check-input panel-toggle" type="checkbox" id="toggle-topics" data-panel="panel-topics" checked />
+					<label class="form-check-label" for="toggle-topics">Topics</label>
+				</div>
+				<div class="form-check form-switch">
+					<input class="form-check-input panel-toggle" type="checkbox" id="toggle-services" data-panel="panel-services" checked />
+					<label class="form-check-label" for="toggle-services">Servizi</label>
+				</div>
+				<div class="form-check form-switch">
+					<input class="form-check-input panel-toggle" type="checkbox" id="toggle-actions" data-panel="panel-actions" checked />
+					<label class="form-check-label" for="toggle-actions">Azioni</label>
+				</div>
+				<div class="form-check form-switch">
+					<input class="form-check-input panel-toggle" type="checkbox" id="toggle-env" data-panel="panel-env" checked />
+					<label class="form-check-label" for="toggle-env">Variabili d'ambiente ROS</label>
+				</div>
+				<div class="form-check form-switch">
+					<input class="form-check-input panel-toggle" type="checkbox" id="toggle-logs" data-panel="panel-logs" checked />
+					<label class="form-check-label" for="toggle-logs">Log dei nodi</label>
+				</div>
+			</div>
+		</div>
 
-    <!-- Collegamento a un ROS 2 reale: riconfigurazione a caldo (no riavvio). -->
-    <div class="modal fade" id="connection-modal" tabindex="-1" aria-labelledby="connection-title" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2 class="modal-title h5" id="connection-title">Collega a un ROS 2 reale</h2>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-          </div>
-          <div class="modal-body">
-            <p class="muted">
-              Ricollega la dashboard a un grafo ROS reale (un robot o una rete di
-              nodi esistente) <strong>senza riavviare</strong> i container: i nuovi
-              parametri vengono applicati a caldo alle interrogazioni successive.
-            </p>
+		<!-- Collegamento a un ROS 2 reale: riconfigurazione a caldo (no riavvio). -->
+		<div class="modal fade" id="connection-modal" tabindex="-1" aria-labelledby="connection-title" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-scrollable">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h2 class="modal-title h5" id="connection-title">Collega a un ROS 2 reale</h2>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+					</div>
+					<div class="modal-body">
+						<p class="muted">
+							Ricollega la dashboard a un grafo ROS reale (un robot o una rete di
+							nodi esistente) <strong>senza riavviare</strong> i container: i nuovi
+							parametri vengono applicati a caldo alle interrogazioni successive.
+						</p>
 
-            <!-- Istruzioni passo passo -->
-            <ol class="mb-4">
-              <li>
-                Nessuna modifica al <code>docker-compose.yml</code>: il backend gira
-                gia' con <code>network_mode: host</code> ed e' quindi sulla
-                <strong>stessa rete</strong> dell'host/robot (vedi
-                <code>docs/ros/real-ros.md</code>).
-              </li>
-              <li>
-                Imposta lo stesso <strong>ROS_DOMAIN_ID</strong> e la stessa
-                <strong>RMW_IMPLEMENTATION</strong> del robot.
-              </li>
-              <li>
-                Indica i <strong>nodi</strong> e i <strong>topic attesi</strong> reali
-                (ricavabili con <code>ros2 node list</code> e <code>ros2 topic hz</code>).
-              </li>
-              <li>
-                Premi <strong>Verifica</strong> per testare la connessione, poi
-                <strong>Applica e aggiorna</strong>: la dashboard si ricarica subito
-                sui dati reali (i nodi demo, sul dominio 0, spariranno).
-              </li>
-            </ol>
+						<!-- Istruzioni passo passo -->
+						<ol class="mb-4">
+							<li>
+								Nessuna modifica al <code>docker-compose.yml</code>: il backend gira
+								gia' con <code>network_mode: host</code> ed e' quindi sulla
+								<strong>stessa rete</strong> dell'host/robot (vedi
+								<code>docs/ros/real-ros.md</code>).
+							</li>
+							<li>
+								Imposta lo stesso <strong>ROS_DOMAIN_ID</strong> e la stessa
+								<strong>RMW_IMPLEMENTATION</strong> del robot.
+							</li>
+							<li>
+								Indica i <strong>nodi</strong> e i <strong>topic attesi</strong> reali
+								(ricavabili con <code>ros2 node list</code> e <code>ros2 topic hz</code>).
+							</li>
+							<li>
+								Premi <strong>Verifica</strong> per testare la connessione, poi
+								<strong>Applica e aggiorna</strong>: la dashboard si ricarica subito
+								sui dati reali (i nodi demo, sul dominio 0, spariranno).
+							</li>
+						</ol>
 
-            <form id="connection-form" class="row g-3">
-              <div class="col-md-4">
-                <label class="form-label" for="conn-domain">ROS_DOMAIN_ID</label>
-                <input type="number" min="0" max="232" class="form-control" id="conn-domain" />
-              </div>
-              <div class="col-md-8">
-                <label class="form-label" for="conn-rmw">RMW_IMPLEMENTATION</label>
-                <select class="form-select" id="conn-rmw" aria-describedby="conn-rmw-help">
-                  <option value="">caricamento…</option>
-                </select>
-                <input
-                  type="text"
-                  class="form-control mt-2 d-none"
-                  id="conn-rmw-custom"
-                  placeholder="es. rmw_connextdds (deve essere gia' installata)"
-                />
-                <div id="conn-rmw-help" class="form-text">
-                  Solo le RMW installate nel container sono selezionabili.
-                  <details class="mt-1">
-                    <summary>Come aggiungere una nuova RMW_IMPLEMENTATION</summary>
-                    <ol class="mb-0 mt-1 ps-3">
-                      <li>
-                        Installa il pacchetto nel <code>backend/Dockerfile</code>
-                        (es. <code>ros-humble-rmw-connextdds</code>).
-                      </li>
-                      <li>Ricostruisci: <code>docker compose up --build</code>.</li>
-                      <li>Comparira' automaticamente in questo menu.</li>
-                    </ol>
-                    In alternativa scegli <strong>Altro…</strong> e digitala (deve
-                    essere comunque gia' installata nel container). Dettagli in
-                    <code>docs/ros/real-ros.md</code>.
-                  </details>
-                </div>
-              </div>
-              <div class="col-12">
-                <label class="form-label" for="conn-discovery">
-                  ROS_DISCOVERY_SERVER <span class="muted">(opzionale, es. 192.168.1.10:11811)</span>
-                </label>
-                <input type="text" class="form-control" id="conn-discovery" placeholder="vuoto = discovery via multicast" />
-              </div>
-              <div class="col-12">
-                <div class="d-flex align-items-center flex-wrap gap-2">
-                  <button type="button" class="btn btn-outline-info btn-sm" id="connection-discover">
-                    Scopri nodi e topic
-                  </button>
-                  <label class="d-flex align-items-center gap-1 mb-0 muted">
-                    freq. minima topic (Hz):
-                    <input type="number" min="0" step="0.1" value="1.0" class="form-control form-control-sm" id="discover-hz" style="width: 6rem" />
-                  </label>
-                  <span class="muted">applica i parametri sopra e rileva nodi/topic dal grafo reale.</span>
-                </div>
-                <div id="discovery-result" class="mt-2"></div>
-              </div>
-              <div class="col-12">
-                <label class="form-label" for="conn-nodes">Nodi attesi <span class="muted">(auto-rilevati, modificabili — separati da virgola)</span></label>
-                <input type="text" class="form-control font-monospace" id="conn-nodes" placeholder="usa 'Scopri nodi e topic' oppure scrivili a mano" />
-              </div>
-              <div class="col-12">
-                <label class="form-label" for="conn-topics">Topic attesi <span class="muted">(auto-rilevati, modificabili — nome=freq_min_hz)</span></label>
-                <input type="text" class="form-control font-monospace" id="conn-topics" placeholder="usa 'Scopri nodi e topic' oppure scrivili a mano" />
-              </div>
-              <div class="col-12">
-                <label class="form-label" for="conn-logdir">Cartella log <span class="muted">(opzionale)</span></label>
-                <input type="text" class="form-control font-monospace" id="conn-logdir" placeholder="/root/.ros/log" />
-              </div>
-            </form>
+						<form id="connection-form" class="row g-3">
+							<div class="col-md-4">
+								<label class="form-label" for="conn-domain">ROS_DOMAIN_ID</label>
+								<input type="number" min="0" max="232" class="form-control" id="conn-domain" />
+							</div>
+							<div class="col-md-8">
+								<label class="form-label" for="conn-rmw">RMW_IMPLEMENTATION</label>
+								<select class="form-select" id="conn-rmw" aria-describedby="conn-rmw-help">
+									<option value="">caricamento…</option>
+								</select>
+								<input
+									type="text"
+									class="form-control mt-2 d-none"
+									id="conn-rmw-custom"
+									placeholder="es. rmw_connextdds (deve essere gia' installata)"
+								/>
+								<div id="conn-rmw-help" class="form-text">
+									Solo le RMW installate nel container sono selezionabili.
+									<details class="mt-1">
+										<summary>Come aggiungere una nuova RMW_IMPLEMENTATION</summary>
+										<ol class="mb-0 mt-1 ps-3">
+											<li>
+												Installa il pacchetto nel <code>backend/Dockerfile</code>
+												(es. <code>ros-humble-rmw-connextdds</code>).
+											</li>
+											<li>Ricostruisci: <code>docker compose up --build</code>.</li>
+											<li>Comparira' automaticamente in questo menu.</li>
+										</ol>
+										In alternativa scegli <strong>Altro…</strong> e digitala (deve
+										essere comunque gia' installata nel container). Dettagli in
+										<code>docs/ros/real-ros.md</code>.
+									</details>
+								</div>
+							</div>
+							<div class="col-12">
+								<label class="form-label" for="conn-discovery">
+									ROS_DISCOVERY_SERVER <span class="muted">(opzionale, es. 192.168.1.10:11811)</span>
+								</label>
+								<input type="text" class="form-control" id="conn-discovery" placeholder="vuoto = discovery via multicast" />
+							</div>
+							<div class="col-12">
+								<div class="d-flex align-items-center flex-wrap gap-2">
+									<button type="button" class="btn btn-outline-info btn-sm" id="connection-discover">
+										Scopri nodi e topic
+									</button>
+									<label class="d-flex align-items-center gap-1 mb-0 muted">
+										freq. minima topic (Hz):
+										<input type="number" min="0" step="0.1" value="1.0" class="form-control form-control-sm" id="discover-hz" style="width: 6rem" />
+									</label>
+									<span class="muted">applica i parametri sopra e rileva nodi/topic dal grafo reale.</span>
+								</div>
+								<div id="discovery-result" class="mt-2"></div>
+							</div>
+							<div class="col-12">
+								<label class="form-label" for="conn-nodes">Nodi attesi <span class="muted">(auto-rilevati, modificabili — separati da virgola)</span></label>
+								<input type="text" class="form-control font-monospace" id="conn-nodes" placeholder="usa 'Scopri nodi e topic' oppure scrivili a mano" />
+							</div>
+							<div class="col-12">
+								<label class="form-label" for="conn-topics">Topic attesi <span class="muted">(auto-rilevati, modificabili — nome=freq_min_hz)</span></label>
+								<input type="text" class="form-control font-monospace" id="conn-topics" placeholder="usa 'Scopri nodi e topic' oppure scrivili a mano" />
+							</div>
+							<div class="col-12">
+								<label class="form-label" for="conn-logdir">Cartella log <span class="muted">(opzionale)</span></label>
+								<input type="text" class="form-control font-monospace" id="conn-logdir" placeholder="/root/.ros/log" />
+							</div>
+						</form>
 
-            <div id="connection-result" class="mt-3"></div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" id="connection-test">Verifica</button>
-            <button type="button" class="btn btn-success" id="connection-apply">Applica e aggiorna</button>
-          </div>
-        </div>
-      </div>
-    </div>
+						<div id="connection-result" class="mt-3"></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary" id="connection-test">Verifica</button>
+						<button type="button" class="btn btn-success" id="connection-apply">Applica e aggiorna</button>
+					</div>
+				</div>
+			</div>
+		</div>
 
-    <!-- Finestra di filtraggio dei log: testo + blocchi (sincronizzati). -->
-    <div class="modal fade" id="log-filter-modal" tabindex="-1" aria-labelledby="log-filter-title" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2 class="modal-title h5" id="log-filter-title">Filtro dei log</h2>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-          </div>
-          <div class="modal-body">
-            <!-- 1) Input testuale a tutta larghezza (query del filtro). -->
-            <label class="form-label" for="log-filter-text">Espressione di filtro</label>
-            <input
-              type="text"
-              class="form-control font-monospace"
-              id="log-filter-text"
-              placeholder='es. node == /talker AND (level >= warn OR message ~ "timeout")'
-              autocomplete="off"
-              spellcheck="false"
-            />
-            <div id="log-filter-error" class="invalid-feedback d-block"></div>
-            <p class="muted small mt-1 mb-3">
-              Campi: <code>node</code>, <code>level</code>, <code>message</code> ·
-              operatori: <code>==</code> <code>!=</code> <code>~</code> (contiene)
-              <code>!~</code> <code>=~</code> (regex) <code>!=~</code> (no regex)
-              <code>&gt;</code> <code>&gt;=</code> <code>&lt;</code> <code>&lt;=</code> ·
-              logici: <code>AND</code> <code>OR</code> e parentesi ·
-              livelli: debug &lt; info &lt; warn &lt; error &lt; fatal.
-              <br />
-              Esempio regex: <code>message =~ "hello \d+"</code> ·
-              <code>node =~ "^stuck"</code>.
-            </p>
+		<!-- Finestra di filtraggio dei log: testo + blocchi (sincronizzati). -->
+		<div class="modal fade" id="log-filter-modal" tabindex="-1" aria-labelledby="log-filter-title" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-scrollable">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h2 class="modal-title h5" id="log-filter-title">Filtro dei log</h2>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+					</div>
+					<div class="modal-body">
+						<!-- 1) Input testuale a tutta larghezza (query del filtro). -->
+						<label class="form-label" for="log-filter-text">Espressione di filtro</label>
+						<input
+							type="text"
+							class="form-control font-monospace"
+							id="log-filter-text"
+							placeholder='es. node == /talker AND (level >= warn OR message ~ "timeout")'
+							autocomplete="off"
+							spellcheck="false"
+						/>
+						<div id="log-filter-error" class="invalid-feedback d-block"></div>
+						<p class="muted small mt-1 mb-3">
+							Campi: <code>node</code>, <code>level</code>, <code>message</code> ·
+							operatori: <code>==</code> <code>!=</code> <code>~</code> (contiene)
+							<code>!~</code> <code>=~</code> (regex) <code>!=~</code> (no regex)
+							<code>&gt;</code> <code>&gt;=</code> <code>&lt;</code> <code>&lt;=</code> ·
+							logici: <code>AND</code> <code>OR</code> e parentesi ·
+							livelli: debug &lt; info &lt; warn &lt; error &lt; fatal.
+							<br />
+							Esempio regex: <code>message =~ "hello \d+"</code> ·
+							<code>node =~ "^stuck"</code>.
+						</p>
 
-            <!-- 2) Blocchi colorati per comporre il filtro graficamente. -->
-            <label class="form-label">Composizione a blocchi</label>
-            <div id="log-filter-builder" class="filter-builder"></div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-danger me-auto" id="log-filter-clear">Pulisci filtro</button>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-          </div>
-        </div>
-      </div>
-    </div>
+						<!-- 2) Blocchi colorati per comporre il filtro graficamente. -->
+						<label class="form-label">Composizione a blocchi</label>
+						<div id="log-filter-builder" class="filter-builder"></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-danger me-auto" id="log-filter-clear">Pulisci filtro</button>
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+					</div>
+				</div>
+			</div>
+		</div>
 
-    <main class="container-fluid p-4">
-      <div class="row g-3">
-        <!-- Requisito 1: stato dei nodi con color coding -->
-        <section class="col-12 col-lg-6" id="panel-nodes">
-          <div class="card h-100">
-            <div class="card-header d-flex align-items-center">
-              <h2 class="h6 mb-0">Nodi ROS 2</h2>
-              <span class="status-dot ms-2" data-status-dot></span>
-              <button
-                class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#body-nodes"
-                aria-expanded="true"
-              >
-                &#9650;
-              </button>
-            </div>
-            <div class="collapse show" id="body-nodes">
-              <div class="card-body">
-                <ul id="nodes-list" class="node-list">
-                  <li class="muted">Caricamento...</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
+		<main class="container-fluid p-4">
+			<div class="row g-3">
+				<!-- Requisito 1: stato dei nodi con color coding -->
+				<section class="col-12 col-lg-6" id="panel-nodes">
+					<div class="card h-100">
+						<div class="card-header d-flex align-items-center">
+							<h2 class="h6 mb-0">Nodi ROS 2</h2>
+							<span class="status-dot ms-2" data-status-dot></span>
+							<button
+								class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
+								type="button"
+								data-bs-toggle="collapse"
+								data-bs-target="#body-nodes"
+								aria-expanded="true"
+							>
+								&#9650;
+							</button>
+						</div>
+						<div class="collapse show" id="body-nodes">
+							<div class="card-body">
+								<ul id="nodes-list" class="node-list">
+									<li class="muted">Caricamento...</li>
+								</ul>
+							</div>
+						</div>
+					</div>
+				</section>
 
-        <!-- Topics del grafo ROS 2 con rilevamento zombie -->
-        <section class="col-12 col-lg-6" id="panel-topics">
-          <div class="card h-100">
-            <div class="card-header d-flex align-items-center">
-              <h2 class="h6 mb-0">Topics</h2>
-              <span class="status-dot ms-2" data-status-dot></span>
-              <button
-                class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#body-topics"
-                aria-expanded="true"
-              >
-                &#9650;
-              </button>
-            </div>
-            <div class="collapse show" id="body-topics">
-              <div class="card-body">
-                <ul id="topics-list" class="node-list">
-                  <li class="muted">Caricamento...</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
+				<!-- Topics del grafo ROS 2 con rilevamento zombie -->
+				<section class="col-12 col-lg-6" id="panel-topics">
+					<div class="card h-100">
+						<div class="card-header d-flex align-items-center">
+							<h2 class="h6 mb-0">Topics</h2>
+							<span class="status-dot ms-2" data-status-dot></span>
+							<button
+								class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
+								type="button"
+								data-bs-toggle="collapse"
+								data-bs-target="#body-topics"
+								aria-expanded="true"
+							>
+								&#9650;
+							</button>
+						</div>
+						<div class="collapse show" id="body-topics">
+							<div class="card-body">
+								<ul id="topics-list" class="node-list">
+									<li class="muted">Caricamento...</li>
+								</ul>
+							</div>
+						</div>
+					</div>
+				</section>
 
-        <!-- Servizi del grafo ROS 2 con rilevamento zombie -->
-        <section class="col-12 col-lg-6" id="panel-services">
-          <div class="card h-100">
-            <div class="card-header d-flex align-items-center">
-              <h2 class="h6 mb-0">Servizi</h2>
-              <span class="status-dot ms-2" data-status-dot></span>
-              <button
-                class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#body-services"
-                aria-expanded="true"
-              >
-                &#9650;
-              </button>
-            </div>
-            <div class="collapse show" id="body-services">
-              <div class="card-body">
-                <ul id="services-list" class="node-list">
-                  <li class="muted">Caricamento...</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
+				<!-- Servizi del grafo ROS 2 con rilevamento zombie -->
+				<section class="col-12 col-lg-6" id="panel-services">
+					<div class="card h-100">
+						<div class="card-header d-flex align-items-center">
+							<h2 class="h6 mb-0">Servizi</h2>
+							<span class="status-dot ms-2" data-status-dot></span>
+							<button
+								class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
+								type="button"
+								data-bs-toggle="collapse"
+								data-bs-target="#body-services"
+								aria-expanded="true"
+							>
+								&#9650;
+							</button>
+						</div>
+						<div class="collapse show" id="body-services">
+							<div class="card-body">
+								<ul id="services-list" class="node-list">
+									<li class="muted">Caricamento...</li>
+								</ul>
+							</div>
+						</div>
+					</div>
+				</section>
 
-        <!-- Azioni del grafo ROS 2 con rilevamento zombie -->
-        <section class="col-12 col-lg-6" id="panel-actions">
-          <div class="card h-100">
-            <div class="card-header d-flex align-items-center">
-              <h2 class="h6 mb-0">Azioni</h2>
-              <span class="status-dot ms-2" data-status-dot></span>
-              <button
-                class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#body-actions"
-                aria-expanded="true"
-              >
-                &#9650;
-              </button>
-            </div>
-            <div class="collapse show" id="body-actions">
-              <div class="card-body">
-                <ul id="actions-list" class="node-list">
-                  <li class="muted">Caricamento...</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
+				<!-- Azioni del grafo ROS 2 con rilevamento zombie -->
+				<section class="col-12 col-lg-6" id="panel-actions">
+					<div class="card h-100">
+						<div class="card-header d-flex align-items-center">
+							<h2 class="h6 mb-0">Azioni</h2>
+							<span class="status-dot ms-2" data-status-dot></span>
+							<button
+								class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
+								type="button"
+								data-bs-toggle="collapse"
+								data-bs-target="#body-actions"
+								aria-expanded="true"
+							>
+								&#9650;
+							</button>
+						</div>
+						<div class="collapse show" id="body-actions">
+							<div class="card-body">
+								<ul id="actions-list" class="node-list">
+									<li class="muted">Caricamento...</li>
+								</ul>
+							</div>
+						</div>
+					</div>
+				</section>
 
-        <!-- Requisito 2: variabili d'ambiente ROS -->
-        <section class="col-12 col-lg-6" id="panel-env">
-          <div class="card h-100">
-            <div class="card-header d-flex align-items-center">
-              <h2 class="h6 mb-0">Variabili d'ambiente ROS</h2>
-              <span class="status-dot ms-2" data-status-dot></span>
-              <button
-                class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#body-env"
-                aria-expanded="true"
-              >
-                &#9650;
-              </button>
-            </div>
-            <div class="collapse show" id="body-env">
-              <div class="card-body">
-                <table class="table table-sm data-table mb-0" id="env-table">
-                  <thead>
-                    <tr>
-                      <th>Variabile</th>
-                      <th>Valore</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td colspan="2" class="muted">Caricamento...</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </section>
+				<!-- Requisito 2: variabili d'ambiente ROS -->
+				<section class="col-12 col-lg-6" id="panel-env">
+					<div class="card h-100">
+						<div class="card-header d-flex align-items-center">
+							<h2 class="h6 mb-0">Variabili d'ambiente ROS</h2>
+							<span class="status-dot ms-2" data-status-dot></span>
+							<button
+								class="btn btn-sm btn-link ms-auto p-0 text-decoration-none collapse-toggle"
+								type="button"
+								data-bs-toggle="collapse"
+								data-bs-target="#body-env"
+								aria-expanded="true"
+							>
+								&#9650;
+							</button>
+						</div>
+						<div class="collapse show" id="body-env">
+							<div class="card-body">
+								<table class="table table-sm data-table mb-0" id="env-table">
+									<thead>
+										<tr>
+											<th>Variabile</th>
+											<th>Valore</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="2" class="muted">Caricamento...</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</section>
 
-        <!-- Requisito 3: log parser -->
-        <section class="col-12" id="panel-logs">
-          <div class="card h-100">
-            <div class="card-header d-flex align-items-center">
-              <h2 class="h6 mb-0">Log dei nodi</h2>
-              <span class="status-dot ms-2" data-status-dot></span>
-              <button
-                class="btn btn-sm btn-outline-primary ms-auto d-flex align-items-center gap-1"
-                type="button"
-                id="log-filter-open"
-                data-bs-toggle="modal"
-                data-bs-target="#log-filter-modal"
-                title="Apri il filtro dei log"
-              >
-                <!-- Icona imbuto (filtro) -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                  <path d="M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5z" />
-                </svg>
-                <span>Filtro</span>
-                <span id="log-filter-badge" class="badge text-bg-primary d-none">attivo</span>
-              </button>
-              <button
-                class="btn btn-sm btn-outline-success ms-2 d-flex align-items-center gap-1"
-                type="button"
-                id="log-export-csv"
-                title="Esporta i log attualmente filtrati in formato CSV"
-              >
-                <!-- Icona download -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                  <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
-                  <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z" />
-                </svg>
-                <span>Esporta CSV</span>
-              </button>
-              <button
-                class="btn btn-sm btn-link ms-2 p-0 text-decoration-none collapse-toggle"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#body-logs"
-                aria-expanded="true"
-              >
-                &#9650;
-              </button>
-            </div>
-            <div class="collapse show" id="body-logs">
-              <div class="card-body">
-                <div class="logs-controls d-flex align-items-center flex-wrap gap-3 mb-2">
-                  <span id="log-active-filter" class="muted font-monospace"></span>
-                  <span id="log-summary" class="muted ms-auto"></span>
-                </div>
-                <div id="logs-container" class="logs-table-wrap">
-                  <table class="table table-sm table-hover data-table mb-0" id="logs-table">
-                    <thead>
-                      <tr>
-                        <th style="width: 11rem">Timestamp</th>
-                        <th style="width: 6rem">Livello</th>
-                        <th style="width: 12rem">Nodo</th>
-                        <th>Messaggio</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr><td colspan="4" class="muted">Caricamento...</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-    </main>
+				<!-- Requisito 3: log parser -->
+				<section class="col-12" id="panel-logs">
+					<div class="card h-100">
+						<div class="card-header d-flex align-items-center">
+							<h2 class="h6 mb-0">Log dei nodi</h2>
+							<span class="status-dot ms-2" data-status-dot></span>
+							<button
+								class="btn btn-sm btn-outline-primary ms-auto d-flex align-items-center gap-1"
+								type="button"
+								id="log-filter-open"
+								data-bs-toggle="modal"
+								data-bs-target="#log-filter-modal"
+								title="Apri il filtro dei log"
+							>
+								<!-- Icona imbuto (filtro) -->
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+									<path d="M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5z" />
+								</svg>
+								<span>Filtro</span>
+								<span id="log-filter-badge" class="badge text-bg-primary d-none">attivo</span>
+							</button>
+							<button
+								class="btn btn-sm btn-outline-success ms-2 d-flex align-items-center gap-1"
+								type="button"
+								id="log-export-csv"
+								title="Esporta i log attualmente filtrati in formato CSV"
+							>
+								<!-- Icona download -->
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+									<path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
+									<path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z" />
+								</svg>
+								<span>Esporta CSV</span>
+							</button>
+							<button
+								class="btn btn-sm btn-link ms-2 p-0 text-decoration-none collapse-toggle"
+								type="button"
+								data-bs-toggle="collapse"
+								data-bs-target="#body-logs"
+								aria-expanded="true"
+							>
+								&#9650;
+							</button>
+						</div>
+						<div class="collapse show" id="body-logs">
+							<div class="card-body">
+								<div class="logs-controls d-flex align-items-center flex-wrap gap-3 mb-2">
+									<span id="log-active-filter" class="muted font-monospace"></span>
+									<span id="log-summary" class="muted ms-auto"></span>
+								</div>
+								<div id="logs-container" class="logs-table-wrap">
+									<table class="table table-sm table-hover data-table mb-0" id="logs-table">
+										<thead>
+											<tr>
+												<th style="width: 11rem">Timestamp</th>
+												<th style="width: 6rem">Livello</th>
+												<th style="width: 12rem">Nodo</th>
+												<th>Messaggio</th>
+											</tr>
+										</thead>
+										<tbody>
+											<tr><td colspan="4" class="muted">Caricamento...</td></tr>
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+					</div>
+				</section>
+			</div>
+		</main>
 
-    <footer class="app-footer muted border-top px-4 py-3">
-      Combo-Debug &middot; monitoraggio ROS 2 via REST &middot; polling ogni
-      <span id="poll-seconds"></span>s
-    </footer>
-
-    <!-- Bootstrap servito localmente (vedi <head> e ./download-vendor.sh). -->
-    <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-    <script src="filter.js"></script>
-    <script type="module" src="js/main.js"></script>
-  </body>
+		<footer class="app-footer muted border-top px-4 py-3">
+			Combo-Debug &middot; monitoraggio ROS 2 via REST &middot; polling ogni
+			<span id="poll-seconds"></span>s
+		</footer>		
+	</body>
 </html>

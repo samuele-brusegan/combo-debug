@@ -25,16 +25,16 @@ let pollingActive = false;
 
 /** Avvia l'orologio in header che mostra l'ora esatta corrente (aggiornata al secondo). */
 function startClock() {
-  const clock = document.getElementById("clock");
-  const tick = () => {
-    clock.textContent = new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  };
-  tick();
-  setInterval(tick, 1000);
+	const clock = document.getElementById("clock");
+	const tick = () => {
+		clock.textContent = new Date().toLocaleTimeString([], {
+			hour: "2-digit",
+			minute: "2-digit",
+			second: "2-digit",
+		});
+	};
+	tick();
+	setInterval(tick, 1000);
 }
 
 /**
@@ -44,37 +44,54 @@ function startClock() {
  * @returns {void}
  */
 function scheduleNextPoll() {
-  if (!pollingActive) {
-    return;
-  }
-  pollTimer = setTimeout(async () => {
-    await refreshAll();
-    scheduleNextPoll();
-  }, POLL_INTERVAL_MS);
+	if (!pollingActive) {
+		return;
+	}
+	pollTimer = setTimeout(async () => {
+		await refreshAll();
+		scheduleNextPoll();
+	}, POLL_INTERVAL_MS);
 }
 
 /** Avvia o riavvia il polling concatenato in base alla checkbox. */
 function setupPolling() {
-  const checkbox = document.getElementById("autorefresh");
-  if (pollTimer) {
-    clearTimeout(pollTimer);
-    pollTimer = null;
-  }
-  pollingActive = checkbox.checked;
-  if (pollingActive) {
-    scheduleNextPoll();
-  }
+	const checkbox = document.getElementById("autorefresh");
+	if (pollTimer) {
+		clearTimeout(pollTimer);
+		pollTimer = null;
+	}
+	pollingActive = checkbox.checked;
+	if (pollingActive) {
+		scheduleNextPoll();
+	}
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("poll-seconds").textContent = String(POLL_INTERVAL_MS / 1000);
-  document.getElementById("autorefresh").addEventListener("change", setupPolling);
-  setupPanelToggles();
-  setupCollapse();
-  setupConnectionModal();
-  setupLogFilter();
-  renderFilterBuilder();
-  startClock();
-  refreshAll();
-  setupPolling();
+	document.getElementById("poll-seconds").textContent = String(POLL_INTERVAL_MS / 1000);
+	document.getElementById("autorefresh").addEventListener("change", setupPolling);
+	document.getElementById("toggle-maxh").addEventListener("change", () => {
+		const toggle_maxh = document.getElementById("toggle-maxh")
+
+		let list_of_panels_ids = ["panel-nodes", "panel-topics", "panel-services", "panel-actions", "panel-env", "panel-logs"]
+		let panelList = []
+		list_of_panels_ids.forEach(id => {
+			let domEl = document.getElementById(id)
+			panelList.push(domEl)
+		});
+		console.log(panelList);
+		
+		panelList.forEach(panel => {
+
+			panel.querySelector(".card-body").classList.toggle("max-panel-height")
+		})
+		
+	})
+	setupPanelToggles();
+	setupCollapse();
+	setupConnectionModal();
+	setupLogFilter();
+	renderFilterBuilder();
+	startClock();
+	refreshAll();
+	setupPolling();
 });
