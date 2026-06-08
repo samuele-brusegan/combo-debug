@@ -6,24 +6,50 @@ Documento foglia: descrive il frontend statico servito da Nginx.
 
 ```
 nginx/frontend/
-├── index.html   # struttura della dashboard
-├── styles.css   # stili (tema scuro, color-coding)
-└── app.js       # logica: polling REST + aggiornamento DOM
+├── index.html       # struttura della dashboard
+├── styles.css       # stili (tema scuro, color-coding)
+├── filter.js        # linguaggio di filtraggio log + query builder (window.LogFilter)
+├── vendor/          # asset di terze parti per l'offline (gitignored, vedi sotto)
+│   └── bootstrap/     # popolato da ./download-vendor.sh
+└── js/              # logica della dashboard, suddivisa in ES modules
+    ├── main.js        # punto di ingresso: init, polling, orologio (DOMContentLoaded)
+    ├── api.js         # wrapper REST GET/POST + API_BASE
+    ├── utils.js       # utility condivise (escapeHtml, dotClass)
+    ├── panels.js      # severita' pannelli, pallini, toggle, collasso
+    ├── nodes.js       # pannello Nodi
+    ├── graph.js       # pannelli Topics/Servizi/Azioni
+    ├── env.js         # pannello variabili d'ambiente
+    ├── logs.js        # pannello Log: filtro, tabella, export CSV
+    ├── connection.js  # badge sorgente dati + modal di connessione
+    └── dashboard.js   # ciclo refreshAll() + liveness backend
 ```
 
 Nessuna toolchain di build: i file sono serviti cosi' come sono, per
-massimizzare la manutenibilita' da parte di chi eredita il progetto.
+massimizzare la manutenibilita' da parte di chi eredita il progetto. La logica
+e' suddivisa in **ES modules** (`<script type="module" src="js/main.js">`);
+`filter.js` resta uno script classico che espone `window.LogFilter`, caricato
+prima del modulo.
 
-## UI: Bootstrap 5
+## UI: Bootstrap 5 (servito in locale, offline)
 
 Il layout e i componenti (grid, card, tabelle, badge, form, offcanvas, collapse)
-sono forniti da **Bootstrap 5** caricato via **CDN** (jsDelivr) in `index.html`,
-con Subresource Integrity (`integrity`). Il tema scuro e' attivato da
+sono forniti da **Bootstrap 5**, servito **localmente** da `vendor/bootstrap/`
+(nessuna dipendenza da CDN/internet a runtime). Il tema scuro e' attivato da
 `data-bs-theme="dark"` sull'elemento `<html>`.
 
-> Nota: essendo via CDN, il browser deve avere accesso a internet. Per un
-> deployment offline, scaricare i file di Bootstrap in `nginx/frontend/` e
-> aggiornare i tag `<link>`/`<script>` con percorsi relativi.
+Gli asset di Bootstrap non sono versionati in git (sono terze parti): vanno
+scaricati una volta con lo script alla radice del repo, **prima della build**:
+
+```bash
+./download-vendor.sh
+```
+
+Lo script scarica CSS, JS bundle e i relativi source map in
+`nginx/frontend/vendor/bootstrap/`, verificando l'integrita' dei file principali
+contro gli hash **SRI (sha384)**. Per aggiornare la versione di Bootstrap si
+modificano la variabile `BOOTSTRAP_VERSION` e gli hash SRI nello script (gli
+URL `vendor/bootstrap/...` in `index.html` restano invariati). Dettagli sul
+deployment: [`../deployment/docker.md`](../deployment/docker.md).
 
 In `styles.css` restano solo gli stili custom non coperti da Bootstrap:
 variabili di color-coding, pallini di stato (con animazione di lampeggio) e
@@ -56,15 +82,33 @@ Il pulsante **Esporta CSV** nell'header del pannello scarica le righe
 
 ## Funzionamento
 
-- All'avvio (`DOMContentLoaded`) viene eseguito un primo `refreshAll()` e poi
-  impostato un `setInterval` di **polling** ogni 5 secondi.
-- `refreshAll()` aggiorna ogni pannello in parallelo; l'errore di un singolo
-  pannello non blocca gli altri (catch isolato).
+- Il punto di ingresso e' `js/main.js`: all'avvio (`DOMContentLoaded`) collega
+  gli handler (`setupPanelToggles`, `setupCollapse`, `setupConnectionModal`,
+  `setupLogFilter`), esegue un primo `refreshAll()` e avvia il polling.
+- Il **polling** e' *concatenato* (`scheduleNextPoll` in `js/main.js`): il ciclo
+  successivo viene pianificato con `setTimeout` **dopo** il completamento di
+  quello corrente, cosi' un giro lento non fa accumulare richieste sovrapposte.
+  L'intervallo e' `POLL_INTERVAL_MS` (5 s).
+- `refreshAll()` (in `js/dashboard.js`) aggiorna ogni pannello in parallelo
+  invocando le rispettive funzioni `refresh*` dei moduli; l'errore di un singolo
+  pannello non blocca gli altri (catch isolato). Una guardia `isRefreshing`
+  evita che due cicli si accavallino.
 - Il color-coding (`green`/`red`/`yellow`) e' mappato a classi CSS dei pallini e
-  dei badge.
-- Il filtro dei log e' una `<select>` che ricarica solo il pannello log.
+  dei badge da `dotClass()` (`js/utils.js`).
+- Il filtro dei log (`js/logs.js` + `filter.js`) e' lato client: un piccolo
+  linguaggio con AST come unica sorgente di verita', sincronizzato tra input
+  testuale e query builder a blocchi (vedi sotto).
 - L'aggiornamento automatico puo' essere disattivato dalla checkbox nel pannello
   Impostazioni.
+
+### Organizzazione del codice (ES modules)
+
+La logica e' divisa per responsabilita' in `js/` (vedi l'albero in [File](#file)).
+Le dipendenze sono esplicite via `import`/`export`: ad esempio `js/dashboard.js`
+importa le funzioni `refresh*` dei singoli pannelli, mentre `js/nodes.js`
+importa `filterLogsByNode` da `js/logs.js` per il click su un nodo. `filter.js`
+non e' un modulo: resta uno script classico che espone l'API `window.LogFilter`,
+usata da `js/logs.js`.
 
 ## Impostazioni, collasso e pallino lampeggiante
 
@@ -125,6 +169,6 @@ essere inseriti nel DOM, per prevenire XSS (es. da messaggi di log arbitrari).
 
 ## Configurazione
 
-- `POLL_INTERVAL_MS` in `app.js` controlla la frequenza di polling.
+- `POLL_INTERVAL_MS` in `js/main.js` controlla la frequenza di polling.
 - `API_BASE` (`/api`) e' relativo: Nginx fa da reverse proxy, quindi non serve
   configurare host/porta del backend nel frontend.

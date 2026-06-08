@@ -62,7 +62,7 @@ CORS in produzione.
 ```mermaid
 sequenceDiagram
     autonumber
-    participant B as Browser (app.js)
+    participant B as Browser (js/main.js)
     participant N as Nginx
     participant A as FastAPI (router)
     participant S as Service

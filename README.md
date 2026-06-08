@@ -15,10 +15,20 @@ L'applicazione gira interamente in **Docker** ed e' composta da due container:
 ## Avvio rapido
 
 ```bash
+# 1. Scarica una volta gli asset frontend (Bootstrap) per il funzionamento
+#    100% offline. Richiede connessione solo in questo passaggio.
+./download-vendor.sh
+
+# 2. Build e avvio dei container.
 docker compose up --build
 ```
 
 Apri poi la dashboard su **http://localhost:8090**.
+
+> La dashboard non dipende da CDN a runtime: gli asset di terze parti sono
+> serviti in locale. `./download-vendor.sh` va eseguito prima della prima build
+> (gli asset non sono versionati in git). Dettagli:
+> [`docs/deployment/docker.md`](docs/deployment/docker.md).
 
 I nodi demo vengono avviati automaticamente e dimostrano tutti gli stati:
 

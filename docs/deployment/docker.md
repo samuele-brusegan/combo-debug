@@ -18,6 +18,21 @@ il discovery DDS e lo scambio dati verso un ROS 2 reale funzionino **senza
 modificare il compose**. Nginx resta su rete bridge e raggiunge il backend via
 `host.docker.internal` (mappato con `extra_hosts: ["host.docker.internal:host-gateway"]`).
 
+## Prerequisito: asset frontend offline
+
+Il frontend usa Bootstrap 5 servito **localmente** (nessuna dipendenza da CDN a
+runtime). Gli asset non sono versionati in git, quindi vanno scaricati una volta
+**prima della prima build** (richiede connessione solo in questo passaggio):
+
+```bash
+./download-vendor.sh
+```
+
+Lo script popola `nginx/frontend/vendor/bootstrap/` (verificando gli hash SRI) e
+quei file vengono poi inclusi nell'immagine Nginx (`COPY frontend ...`). Se si
+salta questo passaggio la dashboard si carica senza stili (404 sugli asset
+Bootstrap). Dettagli: [`../frontend/README.md`](../frontend/README.md).
+
 ## Comandi
 
 ```bash
