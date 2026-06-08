@@ -85,7 +85,7 @@
         </p>
 
         <!-- Le checkbox controllano la visibilita' dei rispettivi pannelli
-             tramite l'attributo data-panel (gestito da app.js). -->
+             tramite l'attributo data-panel (gestito da js/panels.js). -->
         <div class="form-check form-switch">
           <input class="form-check-input panel-toggle" type="checkbox" id="toggle-nodes" data-panel="panel-nodes" checked />
           <label class="form-check-label" for="toggle-nodes">Nodi ROS 2</label>
@@ -497,6 +497,6 @@
       crossorigin="anonymous"
     ></script>
     <script src="filter.js"></script>
-    <script src="app.js"></script>
+    <script type="module" src="js/main.js"></script>
   </body>
 </html>

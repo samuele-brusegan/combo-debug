@@ -53,7 +53,7 @@
 }
 
 /* ---- Pallino di stato del pannello (visibile solo quando collassato) ----
-   data-status-dot e' nascosto di default; app.js aggiunge una classe di
+   data-status-dot e' nascosto di default; js/panels.js aggiunge una classe di
    severita' (.blink-yellow / .blink-red) solo quando il pannello e' collassato
    e contiene problemi. */
 .status-dot {
