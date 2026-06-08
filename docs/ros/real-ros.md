@@ -63,11 +63,10 @@ environment:
 
 Imposta gli stessi valori usati dal robot reale:
 
-```yaml
-environment:
-  COMBO_DEBUG_START_DEMO: "0"
-  ROS_DOMAIN_ID: "0"                 # stesso valore del robot
-  RMW_IMPLEMENTATION: rmw_fastrtps_cpp   # oppure rmw_cyclonedds_cpp
+```env
+COMBO_DEBUG_START_DEMO = "0"
+ROS_DOMAIN_ID = "0"                     # stesso valore del robot
+RMW_IMPLEMENTATION = rmw_fastrtps_cpp   # oppure rmw_cyclonedds_cpp
 ```
 
 > Verifica il dominio sul robot con `echo $ROS_DOMAIN_ID`. Se non e' impostato,
