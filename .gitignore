@@ -24,3 +24,7 @@ log/
 # OS
 .DS_Store
 INSTRUCTIONS.md
+
+# Asset di terze parti scaricati per il funzionamento offline.
+# Riproducibili con ./download-vendor.sh (non versionati).
+nginx/frontend/vendor/
