@@ -7,6 +7,6 @@ FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Frontend statico (Vanilla JS/HTML/CSS).
-COPY frontend /usr/share/nginx/html
+#COPY frontend /usr/share/nginx/html # Ora montato dinamicamente come volume
 
 EXPOSE 80
