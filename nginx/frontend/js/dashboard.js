@@ -18,15 +18,15 @@ import { refreshConnectionBadge } from "./connection.js";
  * @returns {Promise<void>}
  */
 async function refreshBackendStatus() {
-  const badge = document.getElementById("backend-status");
-  try {
-    const data = await (await fetch("/healthz")).json();
-    badge.textContent = `backend: ok (v${data.version})`;
-    badge.className = "badge text-bg-success";
-  } catch (_err) {
-    badge.textContent = "backend: irraggiungibile";
-    badge.className = "badge text-bg-danger";
-  }
+	const badge = document.getElementById("backend-status");
+	try {
+		const data = await (await fetch("/healthz")).json();
+		badge.textContent = `backend: ok (v${data.version})`;
+		badge.className = "badge text-bg-success";
+	} catch (_err) {
+		badge.textContent = "backend: irraggiungibile";
+		badge.className = "badge text-bg-danger";
+	}
 }
 
 let isRefreshing = false;
@@ -37,30 +37,30 @@ let isRefreshing = false;
  * @returns {Promise<void>}
  */
 export async function refreshAll() {
-  // Evita che cicli di refresh si accavallino (es. se un giro e' piu' lento
-  // dell'intervallo di polling): senza questo guardia le richieste si
-  // accumulerebbero e potrebbero saturare il backend.
-  if (isRefreshing) {
-    return;
-  }
-  isRefreshing = true;
-  try {
-    await refreshBackendStatus();
-    const tasks = [
-      ["connessione", refreshConnectionBadge],
-      ["nodi", refreshNodes],
-      ["grafo", refreshGraph],
-      ["env", refreshEnv],
-      ["log", refreshLogs],
-    ];
-    await Promise.all(
-      tasks.map(([name, fn]) =>
-        fn().catch((err) => console.error(`Aggiornamento ${name} fallito:`, err)),
-      ),
-    );
-    document.getElementById("last-update").textContent =
-      "ultimo aggiornamento: " + new Date().toLocaleTimeString();
-  } finally {
-    isRefreshing = false;
-  }
+	// Evita che cicli di refresh si accavallino (es. se un giro e' piu' lento
+	// dell'intervallo di polling): senza questo guardia le richieste si
+	// accumulerebbero e potrebbero saturare il backend.
+	if (isRefreshing) {
+		return;
+	}
+	isRefreshing = true;
+	try {
+		await refreshBackendStatus();
+		const tasks = [
+			["connessione", refreshConnectionBadge],
+			["nodi", refreshNodes],
+			["grafo", refreshGraph],
+			["env", refreshEnv],
+			["log", refreshLogs],
+		];
+		await Promise.all(
+			tasks.map(([name, fn]) =>
+				fn().catch((err) => console.error(`Aggiornamento ${name} fallito:`, err)),
+			),
+		);
+		document.getElementById("last-update").textContent =
+			"ultimo aggiornamento: " + new Date().toLocaleTimeString();
+	} finally {
+		isRefreshing = false;
+	}
 }
