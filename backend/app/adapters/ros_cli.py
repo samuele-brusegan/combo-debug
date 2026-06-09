@@ -10,9 +10,12 @@ toccare i service.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import os
 import shutil
 import subprocess
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -57,6 +60,23 @@ class RosCommandRunner(Protocol):
 
         Returns:
             L'esito dell'esecuzione incapsulato in un `CommandResult`.
+        """
+        ...
+
+    def stream_lines(self, args: list[str]) -> AsyncIterator[str]:
+        """Esegue un comando `ros2` a lunga durata producendo le righe di stdout.
+
+        A differenza di `run` (che attende il termine del processo), questo
+        metodo avvia il comando e restituisce le righe man mano che vengono
+        prodotte, utile per le sottoscrizioni continue (es. ``ros2 topic echo``).
+        Il processo viene terminato quando il consumatore chiude l'iteratore
+        asincrono (es. alla disconnessione del client).
+
+        Args:
+            args: Argomenti del comando, CLI esclusa (es. ``["topic", "echo"]``).
+
+        Returns:
+            Un iteratore asincrono di righe di stdout (senza il newline finale).
         """
         ...
 
@@ -149,3 +169,45 @@ class SubprocessRosCommandRunner:
             stdout=completed.stdout,
             stderr=completed.stderr,
         )
+
+    async def stream_lines(  # pragma: no cover - avvia un subprocess reale
+        self, args: list[str]
+    ) -> AsyncIterator[str]:
+        """Avvia ``ros2 <args>`` e produce le righe di stdout man mano che arrivano.
+
+        Usa `asyncio.create_subprocess_exec` cosi' che la lettura sia
+        cancellabile: alla chiusura dell'iteratore (es. disconnessione del
+        client SSE) il blocco ``finally`` termina il processo figlio, evitando
+        comandi ``ros2`` orfani.
+
+        Args:
+            args: Argomenti passati alla CLI ros2 (es. ``["topic", "echo", ...]``).
+
+        Yields:
+            Le righe di stdout del processo, senza il newline finale.
+        """
+        if not self.is_available():
+            return
+
+        process = await asyncio.create_subprocess_exec(
+            self._executable,
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            env={**os.environ, "PYTHONUNBUFFERED": "1"},
+        )
+        assert process.stdout is not None
+        try:
+            while True:
+                raw = await process.stdout.readline()
+                if not raw:
+                    break  # EOF: il processo e' terminato.
+                yield raw.decode(errors="replace").rstrip("\n")
+        finally:
+            if process.returncode is None:
+                process.terminate()
+                try:
+                    await asyncio.wait_for(process.wait(), timeout=2.0)
+                except (TimeoutError, asyncio.TimeoutError):
+                    with contextlib.suppress(ProcessLookupError):
+                        process.kill()

@@ -37,7 +37,10 @@ def get_runner() -> RosCommandRunner:
         timeout di default delle impostazioni.
     """
     settings = get_settings()
-    return SubprocessRosCommandRunner(default_timeout=settings.ros_command_timeout)
+    return SubprocessRosCommandRunner(
+        executable=settings.ros_executable,
+        default_timeout=settings.ros_command_timeout,
+    )
 
 
 @lru_cache

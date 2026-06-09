@@ -88,6 +88,33 @@ export async function apiGet(path, params) {
 }
 
 /**
+ * Apre uno stream SSE (text/event-stream) verso un endpoint dell'API.
+ *
+ * Usa `fetch` (non `EventSource`) cosi' da poter inviare il token bearer come
+ * header `Authorization`, cosa non supportata da `EventSource`. Restituisce la
+ * `Response`: il chiamante legge il corpo con `response.body.getReader()`.
+ * @param {string} path Percorso relativo a API_BASE (es. "/topics/echo/stream").
+ * @param {URLSearchParams} [params] Eventuali query string.
+ * @param {AbortSignal} [signal] Segnale per interrompere lo stream.
+ * @returns {Promise<Response>} La risposta in streaming.
+ */
+export async function apiStream(path, params, signal) {
+  const url = new URL(API_BASE + path, window.location.origin);
+  if (params) {
+    url.search = params.toString();
+  }
+  const response = await fetch(url, {
+    headers: authHeaders({ Accept: "text/event-stream" }),
+    signal,
+  });
+  if (!response.ok) {
+    handleUnauthorized(response);
+    throw new Error(`HTTP ${response.status} su ${path}`);
+  }
+  return response;
+}
+
+/**
  * Esegue una POST JSON verso un endpoint dell'API.
  * @param {string} path Percorso relativo a API_BASE (puo' includere query string).
  * @param {unknown} [body] Eventuale corpo JSON da inviare.

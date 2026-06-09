@@ -154,11 +154,26 @@ switch di sicurezza della UI).
 
 ## Echo dei topic
 
-### `GET /api/topics/echo?topic=/chatter`
-Cattura un singolo messaggio dal topic (`ros2 topic echo --once`). Se il topic e'
-silente entro il timeout, `available` e' `false`.
-```json
-{ "topic": "/chatter", "message": "data: 'hello'\n---", "available": true, "detail": "" }
+### `GET /api/topics/echo/stream?topic=/chatter`
+Sottoscrive il topic (`ros2 topic echo --full-length`) e trasmette **tutti** i
+messaggi in tempo reale come stream SSE (`text/event-stream`). La risposta resta
+aperta finche' il client non chiude la connessione (chiusura del modal), che
+termina il processo `ros2` lato server.
+
+Eventi emessi:
+- `info` — messaggio iniziale (in ascolto sul topic);
+- `message` — un evento per ogni messaggio catturato (YAML);
+- `end` — chiusura dello stream (con nota se il topic era silente).
+
+```text
+event: info
+data: In ascolto su /chatter — in attesa di messaggi…
+
+event: message
+data: data: hello world 42
+
+event: message
+data: data: hello world 43
 ```
 
 ## Diagnostica

@@ -27,6 +27,7 @@ class Settings(BaseSettings):
         api_prefix: Prefisso comune a tutte le route REST.
         ros_log_dir: Cartella radice dei log ROS 2 da analizzare.
         ros_command_timeout: Timeout (secondi) per ogni SysCall alla CLI ros2.
+        ros_executable: Nome (o percorso) dell'eseguibile della CLI ROS 2.
         expected_topics: Topic attesi indicati dalla UI di connessione, nel
             formato ``topic=frequenza_minima_hz`` separati da virgola (memorizzati
             per comodita' dell'utente).
@@ -55,6 +56,7 @@ class Settings(BaseSettings):
     api_prefix: str = "/api"
     ros_log_dir: Path = Path.home() / ".ros" / "log"
     ros_command_timeout: float = 8.0
+    ros_executable: str = "ros2"
     expected_topics: str = "/chatter=0.5,/heartbeat=1.0"
     expected_nodes: str = "/talker,/listener,/stuck_spinner,/crasher"
     cors_origins: list[str] = ["*"]

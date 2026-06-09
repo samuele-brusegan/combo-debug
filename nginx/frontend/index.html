@@ -396,7 +396,11 @@
 						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
 					</div>
 					<div class="modal-body">
-						<pre id="echo-output" class="echo-output mb-0">…</pre>
+						<div class="d-flex align-items-center justify-content-between mb-2">
+							<span id="echo-status" class="echo-status small">…</span>
+							<button type="button" id="echo-clear" class="btn btn-sm btn-outline-secondary py-0">Pulisci</button>
+						</div>
+						<div id="echo-output" class="echo-output mb-0"></div>
 					</div>
 				</div>
 			</div>

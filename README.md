@@ -53,8 +53,8 @@ I nodi demo vengono avviati automaticamente e dimostrano tutti gli stati:
 - **Parametri dei nodi** – ispezione e modifica a caldo (`ros2 param`), con uno
   **switch di sicurezza**: la scrittura e' disabilitata finche' non viene
   abilitata esplicitamente e il backend rifiuta ogni modifica non confermata.
-- **Echo dei topic** – cattura on-demand di un messaggio (`ros2 topic echo`)
-  direttamente dal pannello dei topic.
+- **Echo dei topic** – streaming on-demand in tempo reale dei messaggi di un
+  topic (`ros2 topic echo` continuo via SSE) direttamente dal pannello dei topic.
 - **Vista grafica del grafo** – diagramma node-link (Cytoscape.js) di nodi e
   topic con color-coding dello stato.
 - **Tema chiaro/scuro** e **layout salvabile** (preferenze in `localStorage`).

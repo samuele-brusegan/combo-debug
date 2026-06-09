@@ -149,8 +149,12 @@
   text-align: right;
 }
 
+/* Negli zombie manca il tipo (nessun endpoint attivo da interrogare): il badge
+   prende il posto della colonna "tipo" spingendosi a destra, cosi' il pulsante
+   echo resta incolonnato come nelle altre righe. */
 .zombie-badge {
   letter-spacing: 0.04em;
+  margin-left: auto;
 }
 
 /* L'intera riga zombie viene evidenziata (sfondo viola tenue + nome colorato)
@@ -315,16 +319,62 @@
   overflow: auto;
 }
 
-/* ---- Echo topic: output del messaggio ---- */
+/* ---- Echo topic: stream dei messaggi ---- */
 .echo-output {
   max-height: 60vh;
   overflow: auto;
+  background: var(--bs-tertiary-bg, rgba(127, 127, 127, 0.08));
+  border-radius: 6px;
+  padding: 0 0.75rem;
+}
+
+/* Ogni messaggio dello stream e' un blocco, separato dal successivo. */
+.echo-msg {
+  margin: 0;
+  padding: 0.5rem 0;
   font-size: 0.82rem;
   white-space: pre-wrap;
   word-break: break-word;
-  background: var(--bs-tertiary-bg, rgba(127, 127, 127, 0.08));
-  border-radius: 6px;
-  padding: 0.75rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+.echo-msg:last-child {
+  border-bottom: none;
+}
+
+/* Riga di stato dello stream con pallino colorato (live/terminato/errore). */
+.echo-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--bs-secondary-color);
+}
+.echo-status::before {
+  content: "";
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+.echo-status-live {
+  color: var(--green);
+}
+.echo-status-live::before {
+  animation: echo-pulse 1.2s ease-in-out infinite;
+}
+.echo-status-end {
+  color: var(--bs-secondary-color);
+}
+.echo-status-error {
+  color: var(--red);
+}
+@keyframes echo-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
 }
 
 /* ---- Vista grafica del grafo (Cytoscape) ---- */

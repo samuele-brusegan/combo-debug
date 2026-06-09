@@ -324,22 +324,6 @@ class ParamSetResult(BaseModel):
     detail: str = ""
 
 
-class TopicEcho(BaseModel):
-    """Ultimo messaggio osservato su un topic (echo on-demand).
-
-    Attributes:
-        topic: Nome del topic interrogato (es. ``/chatter``).
-        message: Contenuto del messaggio (YAML come prodotto da ``ros2 topic echo``).
-        available: ``True`` se un messaggio e' stato catturato.
-        detail: Messaggio descrittivo dell'esito (es. timeout/topic silente).
-    """
-
-    topic: str
-    message: str = ""
-    available: bool = False
-    detail: str = ""
-
-
 class DiagnosticLevel(str, Enum):
     """Livello di un'entrata diagnostica (``diagnostic_msgs/DiagnosticStatus``).
 
