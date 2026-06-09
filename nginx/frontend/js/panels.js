@@ -7,6 +7,8 @@
 
 "use strict";
 
+import { saveLayout } from "./theme.js";
+
 /**
  * Severita' corrente di ciascun pannello, usata per il pallino lampeggiante
  * mostrato quando il pannello e' collassato. Valori: "none" | "yellow" | "red".
@@ -19,6 +21,8 @@ const panelSeverity = {
   "panel-actions": "none",
   "panel-env": "none",
   "panel-logs": "none",
+  "panel-diagnostics": "none",
+  "panel-tf": "none",
 };
 
 /**
@@ -67,6 +71,7 @@ export function setupPanelToggles() {
       if (section) {
         section.classList.toggle("d-none", !toggle.checked);
       }
+      saveLayout();
     });
   }
 }

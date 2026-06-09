@@ -28,3 +28,6 @@ INSTRUCTIONS.md
 # Asset di terze parti scaricati per il funzionamento offline.
 # Riproducibili con ./download-vendor.sh (non versionati).
 nginx/frontend/vendor/
+
+# Node (solo per i test del frontend, non a runtime).
+node_modules/

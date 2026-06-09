@@ -29,7 +29,16 @@ from app.models.schemas import (
     GraphEntityKind,
     GraphSnapshot,
 )
+from app.services.diagnostics_monitor import (
+    LISTENER_NODE_NAME as DIAGNOSTICS_LISTENER_NODE_NAME,
+)
 from app.services.rosout_monitor import LISTENER_NODE_NAME
+from app.services.tf_monitor import LISTENER_NODE_NAME as TF_LISTENER_NODE_NAME
+
+# Nodi di servizio interni del backend, da escludere dall'aggregazione del grafo.
+_INTERNAL_LISTENER_NODES: frozenset[str] = frozenset(
+    {LISTENER_NODE_NAME, DIAGNOSTICS_LISTENER_NODE_NAME, TF_LISTENER_NODE_NAME}
+)
 
 # Intestazioni delle sezioni di ``ros2 node info`` mappate sul ruolo che il
 # nodo svolge per ciascuna entita' del grafo.
@@ -150,7 +159,11 @@ class GraphService:
         result = self._runner.run(["node", "list"])
         if not result.ok:
             return []
-        excluded = {f"/{LISTENER_NODE_NAME}", LISTENER_NODE_NAME}
+        excluded = {
+            name
+            for listener in _INTERNAL_LISTENER_NODES
+            for name in (f"/{listener}", listener)
+        }
         return sorted(
             {
                 line.strip()

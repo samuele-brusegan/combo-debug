@@ -8,7 +8,7 @@
 
 "use strict";
 
-import { apiGet, apiPost, API_BASE } from "./api.js";
+import { apiGet, apiPost, API_BASE, getToken } from "./api.js";
 import { escapeHtml } from "./utils.js";
 import { refreshAll } from "./dashboard.js";
 
@@ -121,9 +121,14 @@ function buildConnectionUpdate() {
  */
 async function applyConnectionConfig() {
 	const url = new URL(API_BASE + "/connection", window.location.origin);
+	const headers = { "Content-Type": "application/json" };
+	const token = getToken();
+	if (token) {
+		headers["Authorization"] = `Bearer ${token}`;
+	}
 	const response = await fetch(url, {
 		method: "PUT",
-		headers: { "Content-Type": "application/json" },
+		headers,
 		body: JSON.stringify(buildConnectionUpdate()),
 	});
 	if (!response.ok) {

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Protocol
 
 from app.adapters.ros_cli import RosCommandRunner
 from app.core.config import Settings
@@ -25,7 +26,25 @@ from app.models.schemas import (
     ConnectionUpdate,
     RmwOptions,
 )
+from app.services.diagnostics_monitor import (
+    LISTENER_NODE_NAME as DIAGNOSTICS_LISTENER_NODE_NAME,
+)
 from app.services.rosout_monitor import LISTENER_NODE_NAME, RosoutMonitor
+from app.services.tf_monitor import LISTENER_NODE_NAME as TF_LISTENER_NODE_NAME
+
+
+class RestartableMonitor(Protocol):
+    """Astrazione di un monitor in background riavviabile a caldo."""
+
+    def restart(self) -> None:
+        """Richiede il riavvio della sottoscrizione del monitor."""
+        ...
+
+
+# Nodi di servizio interni del backend, da escludere dalla vista del grafo.
+_INTERNAL_LISTENER_NODES: frozenset[str] = frozenset(
+    {LISTENER_NODE_NAME, DIAGNOSTICS_LISTENER_NODE_NAME, TF_LISTENER_NODE_NAME}
+)
 
 # Variabili d'ambiente DDS gestite dalla riconfigurazione a caldo.
 _ENV_DOMAIN = "ROS_DOMAIN_ID"
@@ -56,6 +75,7 @@ class ConnectionService:
         runner: RosCommandRunner,
         settings: Settings,
         rosout: RosoutMonitor | None = None,
+        extra_monitors: list[RestartableMonitor] | None = None,
     ) -> None:
         """Inizializza il servizio.
 
@@ -64,10 +84,13 @@ class ConnectionService:
             settings: Configurazione condivisa da aggiornare a caldo.
             rosout: Monitor ``/rosout`` da riavviare quando cambia il dominio
                 DDS, cosi' che la sottoscrizione segua il nuovo grafo ROS.
+            extra_monitors: Altri monitor in background (es. diagnostics, TF) da
+                riavviare anch'essi quando cambia il dominio DDS.
         """
         self._runner = runner
         self._settings = settings
         self._rosout = rosout
+        self._extra_monitors = extra_monitors or []
         # Cache delle RMW installate: l'insieme dei pacchetti non cambia a
         # runtime, quindi lo rileviamo una sola volta (il rilevamento usa una
         # SysCall ``ros2 pkg list``, da non ripetere ad ogni richiesta).
@@ -83,7 +106,10 @@ class ConnectionService:
         # Si e' "in demo" se i nodi di esempio sono stati avviati e si sta ancora
         # osservando il dominio su cui girano (cambiando dominio dalla UI per un
         # robot reale, la demo non e' piu' visibile e l'indicatore sparisce).
-        demo_mode = self._settings.start_demo and current_domain == self._settings.boot_ros_domain_id
+        demo_mode = (
+            self._settings.start_demo
+            and current_domain == self._settings.boot_ros_domain_id
+        )
         return ConnectionConfig(
             ros_domain_id=current_domain,
             rmw_implementation=os.environ.get(_ENV_RMW, ""),
@@ -114,14 +140,17 @@ class ConnectionService:
             dds_changed = dds_changed or os.environ.get(_ENV_DOMAIN) != new_domain
             os.environ[_ENV_DOMAIN] = new_domain
         if update.rmw_implementation is not None:
-            dds_changed = dds_changed or os.environ.get(
-                _ENV_RMW, ""
-            ) != update.rmw_implementation.strip()
+            dds_changed = (
+                dds_changed
+                or os.environ.get(_ENV_RMW, "") != update.rmw_implementation.strip()
+            )
             self._set_or_clear(_ENV_RMW, update.rmw_implementation)
         if update.ros_discovery_server is not None:
-            dds_changed = dds_changed or os.environ.get(
-                _ENV_DISCOVERY, ""
-            ) != update.ros_discovery_server.strip()
+            dds_changed = (
+                dds_changed
+                or os.environ.get(_ENV_DISCOVERY, "")
+                != update.ros_discovery_server.strip()
+            )
             self._set_or_clear(_ENV_DISCOVERY, update.ros_discovery_server)
         if update.expected_nodes is not None:
             self._settings.expected_nodes = update.expected_nodes.strip()
@@ -130,10 +159,14 @@ class ConnectionService:
         if update.ros_log_dir is not None and update.ros_log_dir.strip():
             self._settings.ros_log_dir = Path(update.ros_log_dir.strip())
 
-        # Se sono cambiati i parametri DDS, la sottoscrizione /rosout deve
-        # ripartire sul nuovo grafo (il dominio si applica alla init di rclpy).
-        if dds_changed and self._rosout is not None:
-            self._rosout.restart()
+        # Se sono cambiati i parametri DDS, le sottoscrizioni in background
+        # (/rosout, /diagnostics, /tf) devono ripartire sul nuovo grafo (il
+        # dominio si applica alla init di rclpy).
+        if dds_changed:
+            if self._rosout is not None:
+                self._rosout.restart()
+            for monitor in self._extra_monitors:
+                monitor.restart()
 
         return self.get_config()
 
@@ -236,7 +269,11 @@ class ConnectionService:
             Lista ordinata e deduplicata dei nomi non vuoti, escluso il nodo di
             servizio interno che ascolta ``/rosout``.
         """
-        excluded = {f"/{LISTENER_NODE_NAME}", LISTENER_NODE_NAME}
+        excluded = {
+            name
+            for listener in _INTERNAL_LISTENER_NODES
+            for name in (f"/{listener}", listener)
+        }
         return sorted(
             {
                 line.strip()

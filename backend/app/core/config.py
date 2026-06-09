@@ -40,6 +40,13 @@ class Settings(BaseSettings):
         boot_ros_domain_id: ``ROS_DOMAIN_ID`` rilevato all'avvio del processo,
             cioe' il dominio su cui girano i nodi demo. Confrontato col dominio
             corrente per capire se si sta ancora osservando la demo.
+        auth_enabled: Se ``True`` la dashboard richiede il login (token bearer).
+            Disabilitata di default cosi' la demo resta senza attriti.
+        auth_username: Nome utente accettato dal login.
+        auth_password: Password accettata dal login.
+        auth_secret: Segreto usato per firmare i token. In produzione va
+            sovrascritto con un valore casuale e riservato.
+        auth_token_ttl: Durata (secondi) di validita' di un token rilasciato.
     """
 
     model_config = SettingsConfigDict(env_prefix="COMBO_DEBUG_", env_file=None)
@@ -55,6 +62,11 @@ class Settings(BaseSettings):
     boot_ros_domain_id: str = Field(
         default_factory=lambda: os.environ.get("ROS_DOMAIN_ID", "0")
     )
+    auth_enabled: bool = False
+    auth_username: str = "admin"
+    auth_password: str = "combo-debug"
+    auth_secret: str = "change-me-combo-debug-secret"
+    auth_token_ttl: int = 60 * 60 * 12
 
     def parse_expected_nodes(self) -> list[str]:
         """Restituisce l'elenco dei nomi dei nodi attesi.

@@ -14,7 +14,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api.deps import get_rosout_monitor
+from app.api.deps import (
+    get_diagnostics_monitor,
+    get_rosout_monitor,
+    get_tf_monitor,
+)
 from app.api.routes import api_router
 from app.core.config import Settings, get_settings
 
@@ -23,21 +27,28 @@ from app.core.config import Settings, get_settings
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Gestisce avvio/arresto dei monitor in background.
 
-    All'avvio viene attivato il monitor ``/rosout`` (log live del grafo ROS);
-    allo spegnimento viene fermato.
+    All'avvio vengono attivati i monitor live del grafo ROS (``/rosout`` per i
+    log, ``/diagnostics`` per la diagnostica hardware, ``/tf`` per le
+    trasformate); allo spegnimento vengono fermati.
 
     Args:
         app: Istanza FastAPI (non usata direttamente).
 
     Yields:
-        Il controllo all'applicazione mentre il monitor e' attivo.
+        Il controllo all'applicazione mentre i monitor sono attivi.
     """
     rosout = get_rosout_monitor()
+    diagnostics = get_diagnostics_monitor()
+    tf = get_tf_monitor()
     rosout.start()
+    diagnostics.start()
+    tf.start()
     try:
         yield
     finally:
         rosout.stop()
+        diagnostics.stop()
+        tf.stop()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

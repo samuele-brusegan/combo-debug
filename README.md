@@ -44,6 +44,23 @@ I nodi demo vengono avviati automaticamente e dimostrano tutti gli stati:
    errori e warning.
 4. **Funzionalita' avanzate** – euristica di spin bloccato (frequenza topic).
 
+## Funzionalita' aggiuntive
+
+- **Diagnostica** – pannello con l'ultimo stato di `/diagnostics`
+  (OK/WARN/ERROR/STALE) per componente.
+- **Albero TF** – ricostruzione di `/tf` e `/tf_static` con evidenziazione dei
+  frame scollegati (piu' radici).
+- **Parametri dei nodi** – ispezione e modifica a caldo (`ros2 param`), con uno
+  **switch di sicurezza**: la scrittura e' disabilitata finche' non viene
+  abilitata esplicitamente e il backend rifiuta ogni modifica non confermata.
+- **Echo dei topic** – cattura on-demand di un messaggio (`ros2 topic echo`)
+  direttamente dal pannello dei topic.
+- **Vista grafica del grafo** – diagramma node-link (Cytoscape.js) di nodi e
+  topic con color-coding dello stato.
+- **Tema chiaro/scuro** e **layout salvabile** (preferenze in `localStorage`).
+- **Autenticazione opt-in** – login con token bearer, attivabile via `.env`
+  (`COMBO_DEBUG_AUTH_ENABLED=true`); disabilitata di default.
+
 ## Collegamento a un ROS 2 reale
 
 Per default vengono avviati nodi ROS 2 di esempio. Per agganciare la dashboard a
@@ -71,3 +88,20 @@ black --check .
 mypy app
 pytest
 ```
+
+### Test del frontend
+
+I moduli Vanilla JS hanno test unitari con [Vitest](https://vitest.dev) (jsdom),
+eseguiti anche in CI. Le dipendenze Node servono **solo** allo sviluppo/CI e non
+vengono incluse nell'immagine nginx.
+
+```bash
+npm install
+npm test
+```
+
+### CI
+
+La pipeline GitHub Actions (`.github/workflows/ci.yml`) esegue su ogni push/PR il
+linting, il type checking e i test del backend (`ruff`, `black`, `mypy`,
+`pytest`) e i test del frontend (`vitest`).

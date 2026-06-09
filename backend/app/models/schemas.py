@@ -252,3 +252,217 @@ class RmwOptions(BaseModel):
     available: list[str] = Field(default_factory=list)
     current: str = ""
     detail: str = ""
+
+
+class NodeParams(BaseModel):
+    """Elenco dei parametri dichiarati da un nodo ROS 2.
+
+    Attributes:
+        node: Nome del nodo interrogato (es. ``/talker``).
+        params: Nomi dei parametri dichiarati dal nodo.
+        available: ``True`` se l'interrogazione e' andata a buon fine.
+        detail: Messaggio descrittivo dell'esito (utile in caso di errore).
+    """
+
+    node: str
+    params: list[str] = Field(default_factory=list)
+    available: bool = True
+    detail: str = ""
+
+
+class ParamValue(BaseModel):
+    """Valore corrente di un singolo parametro di un nodo.
+
+    Attributes:
+        node: Nome del nodo proprietario del parametro.
+        name: Nome del parametro (es. ``use_sim_time``).
+        value: Valore corrente serializzato come stringa.
+        available: ``True`` se la lettura e' andata a buon fine.
+        detail: Messaggio descrittivo dell'esito.
+    """
+
+    node: str
+    name: str
+    value: str = ""
+    available: bool = True
+    detail: str = ""
+
+
+class ParamSetRequest(BaseModel):
+    """Richiesta di modifica di un parametro (con conferma di sicurezza).
+
+    La modifica di un parametro puo' alterare il comportamento di un robot in
+    esecuzione: per questo ``confirm`` deve essere esplicitamente ``True``,
+    altrimenti il backend rifiuta l'operazione. E' la controparte server-side
+    dello switch di abilitazione presente nella UI.
+
+    Attributes:
+        value: Nuovo valore del parametro (serializzato come stringa).
+        confirm: Conferma esplicita dell'operazione di scrittura. Senza questo
+            flag a ``True`` la scrittura viene rifiutata (HTTP 409).
+    """
+
+    value: str
+    confirm: bool = False
+
+
+class ParamSetResult(BaseModel):
+    """Esito di una modifica di parametro.
+
+    Attributes:
+        node: Nome del nodo proprietario del parametro.
+        name: Nome del parametro modificato.
+        value: Valore impostato (eco della richiesta).
+        success: ``True`` se la scrittura e' andata a buon fine.
+        detail: Messaggio descrittivo dell'esito.
+    """
+
+    node: str
+    name: str
+    value: str = ""
+    success: bool = False
+    detail: str = ""
+
+
+class TopicEcho(BaseModel):
+    """Ultimo messaggio osservato su un topic (echo on-demand).
+
+    Attributes:
+        topic: Nome del topic interrogato (es. ``/chatter``).
+        message: Contenuto del messaggio (YAML come prodotto da ``ros2 topic echo``).
+        available: ``True`` se un messaggio e' stato catturato.
+        detail: Messaggio descrittivo dell'esito (es. timeout/topic silente).
+    """
+
+    topic: str
+    message: str = ""
+    available: bool = False
+    detail: str = ""
+
+
+class DiagnosticLevel(str, Enum):
+    """Livello di un'entrata diagnostica (``diagnostic_msgs/DiagnosticStatus``).
+
+    Attributes:
+        OK: Componente sano (livello 0).
+        WARN: Avviso (livello 1).
+        ERROR: Errore (livello 2).
+        STALE: Dato non aggiornato/obsoleto (livello 3).
+    """
+
+    OK = "ok"
+    WARN = "warn"
+    ERROR = "error"
+    STALE = "stale"
+
+
+class DiagnosticValue(BaseModel):
+    """Coppia chiave/valore di dettaglio di un'entrata diagnostica.
+
+    Attributes:
+        key: Nome del valore diagnostico.
+        value: Valore associato (stringa).
+    """
+
+    key: str
+    value: str
+
+
+class DiagnosticStatus(BaseModel):
+    """Singola entrata diagnostica pubblicata su ``/diagnostics``.
+
+    Attributes:
+        name: Nome del componente diagnosticato.
+        level: Livello/severita' dell'entrata (mappato sul color-coding).
+        message: Messaggio sintetico associato al livello.
+        hardware_id: Identificativo hardware, se fornito.
+        values: Valori di dettaglio chiave/valore.
+    """
+
+    name: str
+    level: DiagnosticLevel
+    message: str = ""
+    hardware_id: str = ""
+    values: list[DiagnosticValue] = Field(default_factory=list)
+
+
+class DiagnosticsSnapshot(BaseModel):
+    """Fotografia dello stato diagnostico corrente del sistema.
+
+    Attributes:
+        available: ``True`` se il monitor di ``/diagnostics`` e' attivo (ROS
+            disponibile e sottoscrizione avviata).
+        statuses: Entrate diagnostiche piu' recenti, una per componente.
+        detail: Messaggio descrittivo (es. perche' il monitor non e' attivo).
+    """
+
+    available: bool = False
+    statuses: list[DiagnosticStatus] = Field(default_factory=list)
+    detail: str = ""
+
+
+class TfFrameInfo(BaseModel):
+    """Nodo dell'albero delle trasformate TF (un frame di riferimento).
+
+    Attributes:
+        frame_id: Nome del frame (es. ``base_link``).
+        parent: Frame genitore; ``None`` se il frame e' una radice.
+        is_static: ``True`` se la trasformata proviene da ``/tf_static``.
+    """
+
+    frame_id: str
+    parent: str | None = None
+    is_static: bool = False
+
+
+class TfTree(BaseModel):
+    """Albero delle trasformate TF rilevato dai topic ``/tf`` e ``/tf_static``.
+
+    Attributes:
+        available: ``True`` se il monitor TF e' attivo.
+        frames: Elenco piatto dei frame con il rispettivo genitore.
+        roots: Frame radice (senza genitore). Piu' di una radice indica alberi
+            TF scollegati tra loro.
+        detail: Messaggio descrittivo dell'esito.
+    """
+
+    available: bool = False
+    frames: list[TfFrameInfo] = Field(default_factory=list)
+    roots: list[str] = Field(default_factory=list)
+    detail: str = ""
+
+
+class LoginRequest(BaseModel):
+    """Credenziali per l'autenticazione alla dashboard.
+
+    Attributes:
+        username: Nome utente.
+        password: Password in chiaro (validata contro la configurazione).
+    """
+
+    username: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    """Token rilasciato dopo un login andato a buon fine.
+
+    Attributes:
+        token: Token firmato da inviare come ``Authorization: Bearer <token>``.
+        token_type: Tipo di token (sempre ``bearer``).
+    """
+
+    token: str
+    token_type: str = "bearer"
+
+
+class AuthStatus(BaseModel):
+    """Stato dell'autenticazione della dashboard.
+
+    Attributes:
+        enabled: ``True`` se l'autenticazione e' abilitata via configurazione.
+        authenticated: ``True`` se la richiesta corrente e' autenticata.
+    """
+
+    enabled: bool = False
+    authenticated: bool = False

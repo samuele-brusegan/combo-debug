@@ -24,10 +24,17 @@ set -euo pipefail
 BOOTSTRAP_VERSION="5.3.3"
 CDN_BASE="https://cdn.jsdelivr.net/npm/bootstrap@${BOOTSTRAP_VERSION}/dist"
 
+# Versione di Cytoscape.js (usata dalla vista grafica del grafo). Per aggiornarla
+# cambia questa variabile e l'hash SRI sotto.
+CYTOSCAPE_VERSION="3.30.2"
+CYTOSCAPE_URL="https://cdn.jsdelivr.net/npm/cytoscape@${CYTOSCAPE_VERSION}/dist/cytoscape.min.js"
+CYTOSCAPE_SRI="sha384-IWROdLKRsN1UuJywMlWl7/blXQ8GEooN2n7dzTxfEPd7ybYIKCUJ2Ol/1Gpf3YV4"
+
 # Directory di destinazione, relativa alla posizione dello script (non al cwd),
 # cosi' lo script funziona da qualsiasi directory.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENDOR_DIR="${SCRIPT_DIR}/nginx/frontend/vendor/bootstrap"
+CYTOSCAPE_DIR="${SCRIPT_DIR}/nginx/frontend/vendor/cytoscape"
 
 # Asset da scaricare: "percorso/relativo/al/cdn" -> hash SRI atteso.
 # I source map (.map) non hanno un hash di verifica (servono solo ai devtools).
@@ -94,5 +101,13 @@ for path in "${ASSET_PATHS[@]}"; do
   fi
 done
 
-echo "Fatto. Gli asset offline sono in nginx/frontend/vendor/bootstrap/."
+echo "Scarico Cytoscape ${CYTOSCAPE_VERSION} in: ${CYTOSCAPE_DIR}"
+mkdir -p "${CYTOSCAPE_DIR}"
+cyto_dest="${CYTOSCAPE_DIR}/cytoscape.min.js"
+echo "  - cytoscape.min.js"
+download "${CYTOSCAPE_URL}" "${cyto_dest}"
+verify_sri "${cyto_dest}" "${CYTOSCAPE_SRI}"
+echo "    SRI verificato."
+
+echo "Fatto. Gli asset offline sono in nginx/frontend/vendor/."
 echo "Ora puoi buildare normalmente (./build.sh): nessuna dipendenza da CDN."

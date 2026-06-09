@@ -125,3 +125,93 @@ quella attiva, per popolare il menu a tendina `RMW_IMPLEMENTATION` della UI.
 ```json
 { "available": ["rmw_cyclonedds_cpp", "rmw_fastrtps_cpp"], "current": "rmw_fastrtps_cpp", "detail": "2 implementazioni RMW installate. ..." }
 ```
+
+## Parametri dei nodi
+
+### `GET /api/params?node=/talker`
+Elenca i parametri dichiarati da un nodo.
+```json
+{ "node": "/talker", "params": ["use_sim_time"], "available": true, "detail": "" }
+```
+
+### `GET /api/params/value?node=/talker&name=use_sim_time`
+Legge il valore corrente di un parametro.
+```json
+{ "node": "/talker", "name": "use_sim_time", "value": "false", "available": true, "detail": "" }
+```
+
+### `POST /api/params/value?node=/talker&name=use_sim_time`
+Modifica un parametro. **La scrittura puo' alterare lo stato del robot**: il
+campo `confirm` deve essere `true`, altrimenti la richiesta e' rifiutata con
+**HTTP 409** e nessuna modifica viene applicata (controparte server-side dello
+switch di sicurezza della UI).
+```json
+// request
+{ "value": "true", "confirm": true }
+// response
+{ "node": "/talker", "name": "use_sim_time", "value": "true", "success": true, "detail": "Set parameter successful" }
+```
+
+## Echo dei topic
+
+### `GET /api/topics/echo?topic=/chatter`
+Cattura un singolo messaggio dal topic (`ros2 topic echo --once`). Se il topic e'
+silente entro il timeout, `available` e' `false`.
+```json
+{ "topic": "/chatter", "message": "data: 'hello'\n---", "available": true, "detail": "" }
+```
+
+## Diagnostica
+
+### `GET /api/diagnostics`
+Ultimo stato di ogni componente pubblicato su `/diagnostics`. `available` e'
+`false` se il monitor non e' attivo (ROS assente) o nessun messaggio e' arrivato.
+```json
+{
+  "available": true,
+  "statuses": [
+    { "name": "motore", "level": "warn", "message": "temperatura alta", "hardware_id": "", "values": [ { "key": "temp", "value": "80" } ] }
+  ],
+  "detail": ""
+}
+```
+`level` ∈ `ok` | `warn` | `error` | `stale`.
+
+## Albero TF
+
+### `GET /api/tf`
+Albero delle trasformate rilevato da `/tf` e `/tf_static`. Piu' di una `roots`
+indica alberi scollegati.
+```json
+{
+  "available": true,
+  "frames": [
+    { "frame_id": "odom", "parent": null, "is_static": false },
+    { "frame_id": "base_link", "parent": "odom", "is_static": false }
+  ],
+  "roots": ["odom"],
+  "detail": ""
+}
+```
+
+## Autenticazione (opt-in)
+
+Disabilitata di default (`COMBO_DEBUG_AUTH_ENABLED=false`). Quando abilitata,
+tutte le route sotto `/api` (eccetto `/api/auth/*` e `/healthz`) richiedono
+l'header `Authorization: Bearer <token>`.
+
+### `GET /api/auth/status`
+Indica se l'auth e' abilitata e se la richiesta corrente e' autenticata.
+```json
+{ "enabled": true, "authenticated": false }
+```
+
+### `POST /api/auth/login`
+Verifica le credenziali e rilascia un token firmato a tempo. Restituisce
+**401** se le credenziali non sono valide, **403** se l'auth e' disabilitata.
+```json
+// request
+{ "username": "admin", "password": "..." }
+// response
+{ "token": "<token firmato>", "token_type": "bearer" }
+```

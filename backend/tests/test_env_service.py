@@ -33,7 +33,10 @@ def test_reflects_live_connection_changes() -> None:
     parametri DDS nell'ambiente, e l'EnvService (che legge la stessa mappa) deve
     riportarli subito, senza restare sui valori iniziali della demo.
     """
-    environ: dict[str, str] = {"ROS_DOMAIN_ID": "1", "RMW_IMPLEMENTATION": "rmw_fastrtps_cpp"}
+    environ: dict[str, str] = {
+        "ROS_DOMAIN_ID": "1",
+        "RMW_IMPLEMENTATION": "rmw_fastrtps_cpp",
+    }
     service = EnvService(environ=environ)
 
     assert {v.key: v.value for v in service.get_ros_variables()}["ROS_DOMAIN_ID"] == "1"

@@ -21,7 +21,11 @@ from app.services.connection_service import ConnectionService
 router = APIRouter(prefix="/connection", tags=["connection"])
 
 
-@router.get("", response_model=ConnectionConfig, summary="Configurazione di connessione attuale")
+@router.get(
+    "",
+    response_model=ConnectionConfig,
+    summary="Configurazione di connessione attuale",
+)
 def get_connection(
     service: ConnectionService = Depends(get_connection_service),
 ) -> ConnectionConfig:
@@ -36,7 +40,11 @@ def get_connection(
     return service.get_config()
 
 
-@router.put("", response_model=ConnectionConfig, summary="Applica la connessione a caldo")
+@router.put(
+    "",
+    response_model=ConnectionConfig,
+    summary="Applica la connessione a caldo",
+)
 def update_connection(
     update: ConnectionUpdate,
     service: ConnectionService = Depends(get_connection_service),

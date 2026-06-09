@@ -16,6 +16,10 @@ import { setupPanelToggles, setupCollapse } from "./panels.js";
 import { setupLogFilter, renderFilterBuilder } from "./logs.js";
 import { setupConnectionModal } from "./connection.js";
 import { refreshAll } from "./dashboard.js";
+import { setupAuth, ensureAuthenticated } from "./auth.js";
+import { setupParamsModal } from "./params.js";
+import { setupGraphView } from "./graph-view.js";
+import { setupTheme, restoreLayout } from "./theme.js";
 
 /** Intervallo di polling in millisecondi. */
 const POLL_INTERVAL_MS = 5000;
@@ -66,32 +70,45 @@ function setupPolling() {
 	}
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
 	document.getElementById("poll-seconds").textContent = String(POLL_INTERVAL_MS / 1000);
 	document.getElementById("autorefresh").addEventListener("change", setupPolling);
 	document.getElementById("toggle-maxh").addEventListener("change", () => {
-		const toggle_maxh = document.getElementById("toggle-maxh")
-
-		let list_of_panels_ids = ["panel-nodes", "panel-topics", "panel-services", "panel-actions", "panel-env", "panel-logs"]
-		let panelList = []
-		list_of_panels_ids.forEach(id => {
-			let domEl = document.getElementById(id)
-			panelList.push(domEl)
+		let list_of_panels_ids = [
+			"panel-nodes",
+			"panel-topics",
+			"panel-services",
+			"panel-actions",
+			"panel-env",
+			"panel-logs",
+			"panel-diagnostics",
+			"panel-tf",
+		];
+		list_of_panels_ids.forEach((id) => {
+			const domEl = document.getElementById(id);
+			const body = domEl ? domEl.querySelector(".card-body") : null;
+			if (body) {
+				body.classList.toggle("max-panel-height");
+			}
 		});
-		console.log(panelList);
-		
-		panelList.forEach(panel => {
-
-			panel.querySelector(".card-body").classList.toggle("max-panel-height")
-		})
-		
-	})
+	});
+	setupTheme();
+	setupAuth();
 	setupPanelToggles();
+	restoreLayout();
 	setupCollapse();
 	setupConnectionModal();
+	setupParamsModal();
+	setupGraphView();
 	setupLogFilter();
 	renderFilterBuilder();
 	startClock();
-	refreshAll();
-	setupPolling();
+
+	// Se l'auth e' abilitata e non siamo autenticati, ensureAuthenticated mostra
+	// il login; in tal caso il primo refresh/polling parte dopo il login (auth.js).
+	const ready = await ensureAuthenticated();
+	if (ready) {
+		refreshAll();
+		setupPolling();
+	}
 });

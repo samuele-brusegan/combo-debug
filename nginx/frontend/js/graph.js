@@ -10,6 +10,7 @@
 import { apiGet } from "./api.js";
 import { dotClass, escapeHtml } from "./utils.js";
 import { setPanelSeverity } from "./panels.js";
+import { openTopicEcho } from "./topics.js";
 
 /**
  * Renderizza un elenco di entita' del grafo (topic/servizi/azioni) con il
@@ -47,11 +48,21 @@ function renderGraphEntities(listId, panelId, entities, emptyText) {
     const typeText = entity.entity_type
       ? `<span class="entity-type mono">${escapeHtml(entity.entity_type)}</span>`
       : "";
+    // Solo i topic offrono l'echo on-demand di un messaggio.
+    const echoButton =
+      entity.kind === "topic"
+        ? '<button type="button" class="btn btn-sm btn-outline-info ms-2 py-0 echo-btn" title="Mostra l\'ultimo messaggio">echo</button>'
+        : "";
     li.innerHTML =
       `<span class="dot ${dotClass(entity.status)}"></span>` +
       `<span class="node-name">${escapeHtml(entity.name)}</span>` +
       zombieBadge +
-      typeText;
+      typeText +
+      echoButton;
+    const echoEl = li.querySelector(".echo-btn");
+    if (echoEl) {
+      echoEl.addEventListener("click", () => openTopicEcho(entity.name));
+    }
     list.appendChild(li);
   }
   setPanelSeverity(panelId, severity);

@@ -12,6 +12,8 @@ import { refreshGraph } from "./graph.js";
 import { refreshEnv } from "./env.js";
 import { refreshLogs } from "./logs.js";
 import { refreshConnectionBadge } from "./connection.js";
+import { refreshDiagnostics } from "./diagnostics.js";
+import { refreshTf } from "./tf.js";
 
 /**
  * Verifica la liveness del backend e aggiorna il badge di stato.
@@ -52,6 +54,8 @@ export async function refreshAll() {
 			["grafo", refreshGraph],
 			["env", refreshEnv],
 			["log", refreshLogs],
+			["diagnostica", refreshDiagnostics],
+			["tf", refreshTf],
 		];
 		await Promise.all(
 			tasks.map(([name, fn]) =>

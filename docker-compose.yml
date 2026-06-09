@@ -45,8 +45,26 @@ services:
       ROS_DOMAIN_ID: ${ROS_DOMAIN_ID}
       RMW_IMPLEMENTATION: ${RMW_IMPLEMENTATION}
       COMBO_DEBUG_START_DEMO: ${COMBO_DEBUG_START_DEMO}
+      # Autenticazione opt-in della dashboard (vedi .env.example). I default
+      # mantengono l'auth disabilitata se le variabili non sono impostate.
+      COMBO_DEBUG_AUTH_ENABLED: ${COMBO_DEBUG_AUTH_ENABLED:-false}
+      COMBO_DEBUG_AUTH_USERNAME: ${COMBO_DEBUG_AUTH_USERNAME:-admin}
+      COMBO_DEBUG_AUTH_PASSWORD: ${COMBO_DEBUG_AUTH_PASSWORD:-combo-debug}
+      COMBO_DEBUG_AUTH_SECRET: ${COMBO_DEBUG_AUTH_SECRET:-change-me-combo-debug-secret}
     # I log ROS vengono scritti in /root/.ros/log dentro il container.
     restart: unless-stopped
+    # Healthcheck sulla liveness probe del backend. Usa python3 (sempre presente
+    # nell'immagine ROS) per non dipendere da curl/wget.
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz').status==200 else 1)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   nginx:
     build:
@@ -54,9 +72,17 @@ services:
       dockerfile: Dockerfile
     container_name: combo-debug-nginx
     depends_on:
-      - ros-backend
+      ros-backend:
+        condition: service_healthy
     ports:
       - "8090:80"
+    # Healthcheck: busybox wget (incluso in nginx:alpine) verso la home page.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     # Permette a nginx (su rete bridge) di raggiungere il backend in ascolto
     # sull'host tramite il nome speciale `host.docker.internal`.
     extra_hosts:
